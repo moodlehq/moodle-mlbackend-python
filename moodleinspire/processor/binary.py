@@ -8,7 +8,6 @@ from sklearn.cross_validation import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
 from sklearn.linear_model import LogisticRegressionCV
-from sklearn.externals import joblib
 import tensorflow.contrib.learn as skflow
 import tensorflow
 
@@ -54,7 +53,7 @@ class Sklearn(estimator.Classifier):
 
         trained_classifier = self.train(self.X, self.y, classifier)
 
-        store_classifier(trained_classifier, classifier_filepath)
+        self.store_classifier(trained_classifier, classifier_filepath)
 
         result = dict()
         result['status'] = estimator.Classifier.OK
@@ -74,7 +73,7 @@ class Sklearn(estimator.Classifier):
             result['errors'] = ['Provided model have not been trained yet']
             return result
 
-        classifier = joblib.load(classifier_filepath)
+        classifier = self.load_classifier(classifier_filepath)
 
         # Prediction and calculated probability of each of the labels.
         y_proba = classifier.predict_proba(x)

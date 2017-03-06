@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 from sklearn.utils import shuffle
+from sklearn.externals import joblib
 
 class Classifier(object):
 
