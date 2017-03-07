@@ -28,9 +28,9 @@ def main():
     directory = sys.argv[2]
 
     # Sklearn binary classifier - logistic regression.
-    binary_classifier = binary.Sklearn(modelid, directory)
+    #binary_classifier = binary.Sklearn(modelid, directory)
     # TensorFlow binary classifier - NN.
-    #binary_classifier = binary.TensorFlow(modelid, directory)
+    binary_classifier = binary.TensorFlow(modelid, directory)
     # TensorFlow binary classifier - logistic regression.
     #binary_classifier = binary.Skflow(modelid, directory)
     # TensorFlow binary classifier - deep neural network.
