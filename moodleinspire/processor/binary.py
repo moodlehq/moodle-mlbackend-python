@@ -57,7 +57,7 @@ class Sklearn(estimator.Classifier):
 
         result = dict()
         result['status'] = estimator.Classifier.OK
-        result['errors'] = []
+        result['info'] = []
         return result
 
 
@@ -70,7 +70,7 @@ class Sklearn(estimator.Classifier):
         if os.path.isfile(classifier_filepath) == False:
             result = dict()
             result['status'] = estimator.Classifier.NO_DATASET
-            result['errors'] = ['Provided model have not been trained yet']
+            result['info'] = ['Provided model have not been trained yet']
             return result
 
         classifier = self.load_classifier(classifier_filepath)
@@ -83,7 +83,7 @@ class Sklearn(estimator.Classifier):
 
         result = dict()
         result['status'] = estimator.Classifier.OK
-        result['errors'] = []
+        result['info'] = []
         # First column sampleids, second the prediction and third how reliable is the prediction (from 0 to 1).
         result['predictions'] = np.vstack((sampleids, y_pred, probabilities)).T.tolist()
 
@@ -248,20 +248,20 @@ class Sklearn(estimator.Classifier):
 
         result['dir'] = self.logsdir
         result['status'] = estimator.Classifier.OK
-        result['errors'] = []
+        result['info'] = []
 
         # If deviation is too high we may need more records to report if
         # this model is reliable or not.
         auc_deviation = np.std(self.aucs)
         if auc_deviation > accepted_deviation:
-            result['errors'].append('The results obtained varied too much,'
+            result['info'].append('The results obtained varied too much,'
                 + ' we need more samples to check if this model is valid.'
                 + ' Model deviation = %f, accepted deviation = %f' \
                 % (auc_deviation, accepted_deviation))
             result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
 
         if score < min_score:
-            result['errors'].append('The model is not good enough. Model score ='
+            result['info'].append('The model is not good enough. Model score ='
                 + ' %f, minimum score = %f' \
                 % (score, min_score))
             result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE

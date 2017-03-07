@@ -11,7 +11,7 @@ def main():
         result = dict()
         result['runid'] = str(int(time.time()))
         result['status'] = estimator.Classifier.GENERAL_ERROR
-        result['errors'] = ['Missing arguments, you should set:\
+        result['info'] = ['Missing arguments, you should set:\
     - The model unique identifier\
     - The directory to store all generated outputs\
     - The file with samples to predict\
