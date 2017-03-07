@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
 from sklearn.linear_model import LogisticRegressionCV
 import tensorflow.contrib.learn as skflow
-import tensorflow
+import tensorflow as tf
 
 from . import estimator
 from ..classifier import tensor
@@ -315,13 +315,36 @@ class TensorFlow(Sklearn):
 
     def get_classifier(self, X, y):
 
-        n_epoch = 5
+        n_epoch = 10
         batch_size = 1000
         starter_learning_rate = 0.01
-        final_learning_rate = 0.000001
 
-        return tensor.TF(n_epoch, batch_size, starter_learning_rate, final_learning_rate)
+        unused, n_features = X.shape
 
+        # TODO Using 2 classes. Extra argument required if we want
+        # this to work with more than 2 classes
+        n_classes = 2
+
+        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate)
+
+    def store_classifier(self, trained_classifier, classifier_filepath):
+
+        # Store the graph state.
+        saver = tf.train.Saver()
+        sess = trained_classifier.get_session()
+        save_path = saver.save(sess, classifier_filepath + '.ckpt')
+
+        # Save the class data.
+        super(TensorFlow, self).store_classifier(trained_classifier, classifier_filepath)
+
+    def load_classifier(self, classifier_filepath):
+
+        classifier = super(TensorFlow, self).load_classifier(classifier_filepath)
+
+        # Now restore the graph state.
+        saver = tf.train.Saver()
+        saver.restore(classifier.get_session(), classifier_filepath + '.ckpt')
+        return classifier
 
     def store_learning_curve(self):
         pass
