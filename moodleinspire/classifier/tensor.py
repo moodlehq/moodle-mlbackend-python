@@ -6,13 +6,14 @@ import tensorflow as tf
 
 class TF(object):
 
-    def __init__(self, n_features, n_classes, n_epoch, batch_size, starter_learning_rate):
+    def __init__(self, n_features, n_classes, n_epoch, batch_size, starter_learning_rate, tensor_logdir):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
         self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
         self.n_classes = n_classes
+        self.tensor_logdir = tensor_logdir
 
         self.x = None
         self.y_ = None

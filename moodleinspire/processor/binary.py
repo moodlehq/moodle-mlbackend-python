@@ -325,7 +325,9 @@ class TensorFlow(Sklearn):
         # this to work with more than 2 classes
         n_classes = 2
 
-        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate)
+        self.tensor_logdir = os.path.join(self.logsdir, 'tensor')
+
+        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate, self.tensor_logdir)
 
     def store_classifier(self, trained_classifier, classifier_filepath):
 
@@ -348,6 +350,13 @@ class TensorFlow(Sklearn):
 
     def store_learning_curve(self):
         pass
+
+    def get_evaluation_results(self, min_score, accepted_deviation):
+
+        results = super(TensorFlow, self).get_evaluation_results(min_score, accepted_deviation)
+        results['info'] = 'Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.tensor_logdir + '\''
+
+        return results
 
 
 class Skflow(Sklearn):
