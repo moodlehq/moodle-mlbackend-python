@@ -18,7 +18,7 @@ class Classifier(object):
     EVALUATE_LOW_SCORE = 4
     EVALUATE_NOT_ENOUGH_DATA = 8
 
-    def __init__(self, modelid, directory, log_into_file=True):
+    def __init__(self, modelid, directory):
 
         self.classes = None
 
@@ -39,8 +39,7 @@ class Classifier(object):
             raise OSError('Directory ' + self.logsdir + ' can not be created.')
 
         # Logging.
-        self.log_into_file = log_into_file
-        logfile = self.get_log_filename()
+        logfile = os.path.join(self.logsdir, 'info.log')
         logging.basicConfig(filename=logfile,level=logging.DEBUG)
         warnings.showwarning = self.warnings_to_log
 
@@ -54,18 +53,15 @@ class Classifier(object):
         np.set_printoptions(threshold=np.inf)
         np.seterr(all='raise')
 
+
     @staticmethod
     def warnings_to_log(message, category, filename, lineno, file=None):
        logging.warning('%s:%s: %s:%s' % (filename, lineno, category.__name__, message))
 
+
     def get_runid(self):
         return self.runid
 
-
-    def get_log_filename(self):
-        if self.log_into_file == False:
-            return False
-        return os.path.join(self.logsdir, 'info.log')
 
     def load_classifier(self):
         classifier_filepath = os.path.join(self.persistencedir, Classifier.PERSIST_FILENAME)

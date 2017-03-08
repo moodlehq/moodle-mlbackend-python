@@ -39,13 +39,25 @@ class TF(object):
         del state['file_writer']
         del state['merged']
 
+        # We also remove this as it depends on the run.
+        del state['tensor_logdir']
+
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.build_graph()
         self.start_session()
-        self.init_logging()
+
+    def set_tensor_logdir(self, tensor_logdir):
+        '''Needs to be set separately as it depends on the run, it can not be restored.'''
+        self.tensor_logdir = tensor_logdir
+        try:
+            self.file_writer
+            self.merged
+        except AttributeError:
+            # Init logging if logging vars are not defined.
+            self.init_logging()
 
     def build_graph(self):
 

@@ -17,9 +17,9 @@ from .. import chart
 
 class Sklearn(estimator.Classifier):
 
-    def __init__(self, modelid, directory, log_into_file=True):
+    def __init__(self, modelid, directory):
 
-        super(Sklearn, self).__init__(modelid, directory, log_into_file)
+        super(Sklearn, self).__init__(modelid, directory)
 
         self.aucs = []
         self.classes = [1, 0]
@@ -38,17 +38,22 @@ class Sklearn(estimator.Classifier):
         return classifier
 
 
+    def classifier_exists(self):
+
+        classifier_dir = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
+        return os.path.isfile(classifier_dir)
+
     def train_dataset(self, filepath):
         # TODO Move this to Classifier and make it multiple classes compatible.
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
         # Load the loaded model if it exists.
-        #if os.path.isfile(classifier_dir) == True:
-            #classifier = self.load_classifier()
-        #else:
+        if self.classifier_exists():
+            classifier = self.load_classifier()
+        else:
             # Not previously trained.
-        classifier = False
+            classifier = False
 
         trained_classifier = self.train(self.X, self.y, classifier)
 
@@ -65,8 +70,7 @@ class Sklearn(estimator.Classifier):
 
         [sampleids, x] = self.get_unlabelled_samples(filepath)
 
-        classifier_dir = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
-        if os.path.isfile(classifier_dir) == False:
+        if self.classifier_exists() == False:
             result = dict()
             result['status'] = estimator.Classifier.NO_DATASET
             result['info'] = ['Provided model have not been trained yet']
@@ -108,15 +112,14 @@ class Sklearn(estimator.Classifier):
         self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
 
         # Learning curve.
-        if self.log_into_file == True:
-            try:
-                self.store_learning_curve()
-            except ValueError:
-                # The learning curve cross-validation process may trigger a
-                # ValueError if all examples in a data chunk belong to the same
-                # class, which is likely to happen when the number of samples
-                # is small.
-                logging.info('Learning curve generation skipped, not enough samples')
+        try:
+            self.store_learning_curve()
+        except ValueError:
+            # The learning curve cross-validation process may trigger a
+            # ValueError if all examples in a data chunk belong to the same
+            # class, which is likely to happen when the number of samples
+            # is small.
+            logging.info('Learning curve generation skipped, not enough samples')
 
         for i in range(0, n_test_runs):
 
@@ -128,9 +131,8 @@ class Sklearn(estimator.Classifier):
             self.rate_prediction(classifier, X_test, y_test)
 
         # Store the roc curve.
-        if self.log_into_file == True:
-            fig_filepath = self.roc_curve_plot.store()
-            logging.info("Figure stored in " + fig_filepath)
+        fig_filepath = self.roc_curve_plot.store()
+        logging.info("Figure stored in " + fig_filepath)
 
         # Return results.
         result = self.get_evaluation_results(min_score, accepted_deviation)
@@ -312,6 +314,16 @@ class Sklearn(estimator.Classifier):
 
 class TensorFlow(Sklearn):
 
+    def __init__(self, modelid, directory):
+
+        super(TensorFlow, self).__init__(modelid, directory)
+
+        self.tensor_logdir = self.get_tensor_logdir()
+        if os.path.isdir(self.tensor_logdir) == False:
+            if os.makedirs(self.tensor_logdir) == False:
+                raise OSError('Directory ' + self.tensor_logdir + ' can not be created.')
+
+
     def get_classifier(self, X, y):
 
         n_epoch = 10
@@ -324,9 +336,7 @@ class TensorFlow(Sklearn):
         # this to work with more than 2 classes
         n_classes = 2
 
-        self.tensor_logdir = self.get_tensor_logdir()
-
-        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate, self.tensor_logdir)
+        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate, self.get_tensor_logdir())
 
     def get_tensor_logdir(self):
         return os.path.join(self.logsdir, 'tensor')
@@ -341,7 +351,7 @@ class TensorFlow(Sklearn):
         save_path = saver.save(sess, path)
 
         # Also save it to the logs dir to see the embeddings.
-        path = os.path.join(self.tensor_logdir, 'model.ckpt')
+        path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
         save_path = saver.save(sess, path)
 
         # Save the class data.
@@ -350,6 +360,7 @@ class TensorFlow(Sklearn):
     def load_classifier(self):
 
         classifier = super(TensorFlow, self).load_classifier()
+        classifier.set_tensor_logdir(self.get_tensor_logdir())
 
         # Now restore the graph state.
         saver = tf.train.Saver()
@@ -363,7 +374,7 @@ class TensorFlow(Sklearn):
     def get_evaluation_results(self, min_score, accepted_deviation):
 
         results = super(TensorFlow, self).get_evaluation_results(min_score, accepted_deviation)
-        results['info'] = 'Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.tensor_logdir + '\''
+        results['info'] = 'Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.get_tensor_logdir() + '\''
 
         return results
 
