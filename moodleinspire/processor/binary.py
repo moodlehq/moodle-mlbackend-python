@@ -44,16 +44,15 @@ class Sklearn(estimator.Classifier):
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
         # Load the loaded model if it exists.
-        classifier_filepath = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
-        if os.path.isfile(classifier_filepath) == True:
-            classifier = self.load_classifier(classifier_filepath)
-        else:
+        #if os.path.isfile(classifier_dir) == True:
+            #classifier = self.load_classifier()
+        #else:
             # Not previously trained.
-            classifier = False
+        classifier = False
 
         trained_classifier = self.train(self.X, self.y, classifier)
 
-        self.store_classifier(trained_classifier, classifier_filepath)
+        self.store_classifier(trained_classifier)
 
         result = dict()
         result['status'] = estimator.Classifier.OK
@@ -66,14 +65,14 @@ class Sklearn(estimator.Classifier):
 
         [sampleids, x] = self.get_unlabelled_samples(filepath)
 
-        classifier_filepath = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
-        if os.path.isfile(classifier_filepath) == False:
+        classifier_dir = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
+        if os.path.isfile(classifier_dir) == False:
             result = dict()
             result['status'] = estimator.Classifier.NO_DATASET
             result['info'] = ['Provided model have not been trained yet']
             return result
 
-        classifier = self.load_classifier(classifier_filepath)
+        classifier = self.load_classifier()
 
         # Prediction and calculated probability of each of the labels.
         y_proba = classifier.predict_proba(x)
@@ -325,27 +324,37 @@ class TensorFlow(Sklearn):
         # this to work with more than 2 classes
         n_classes = 2
 
-        self.tensor_logdir = os.path.join(self.logsdir, 'tensor')
+        self.tensor_logdir = self.get_tensor_logdir()
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate, self.tensor_logdir)
 
-    def store_classifier(self, trained_classifier, classifier_filepath):
+    def get_tensor_logdir(self):
+        return os.path.join(self.logsdir, 'tensor')
+
+    def store_classifier(self, trained_classifier):
 
         # Store the graph state.
         saver = tf.train.Saver()
         sess = trained_classifier.get_session()
-        save_path = saver.save(sess, classifier_filepath + '.ckpt')
+
+        path = os.path.join(self.persistencedir, 'model.ckpt')
+        save_path = saver.save(sess, path)
+
+        # Also save it to the logs dir to see the embeddings.
+        path = os.path.join(self.tensor_logdir, 'model.ckpt')
+        save_path = saver.save(sess, path)
 
         # Save the class data.
-        super(TensorFlow, self).store_classifier(trained_classifier, classifier_filepath)
+        super(TensorFlow, self).store_classifier(trained_classifier)
 
-    def load_classifier(self, classifier_filepath):
+    def load_classifier(self):
 
-        classifier = super(TensorFlow, self).load_classifier(classifier_filepath)
+        classifier = super(TensorFlow, self).load_classifier()
 
         # Now restore the graph state.
         saver = tf.train.Saver()
-        saver.restore(classifier.get_session(), classifier_filepath + '.ckpt')
+        path = os.path.join(self.persistencedir, 'model.ckpt')
+        saver.restore(classifier.get_session(), path)
         return classifier
 
     def store_learning_curve(self):

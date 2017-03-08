@@ -67,10 +67,12 @@ class Classifier(object):
             return False
         return os.path.join(self.logsdir, 'info.log')
 
-    def load_classifier(self, classifier_filepath):
+    def load_classifier(self):
+        classifier_filepath = os.path.join(self.persistencedir, Classifier.PERSIST_FILENAME)
         return joblib.load(classifier_filepath)
 
-    def store_classifier(self, trained_classifier, classifier_filepath):
+    def store_classifier(self, trained_classifier):
+        classifier_filepath = os.path.join(self.persistencedir, Classifier.PERSIST_FILENAME)
         joblib.dump(trained_classifier, classifier_filepath)
 
     def get_labelled_samples(self, filepath):

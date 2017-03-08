@@ -19,10 +19,13 @@ class TF(object):
         self.y_ = None
         self.y = None
         self.z = None
+        self.loss = None
 
         self.build_graph()
 
         self.start_session()
+
+        self.init_logging()
 
     def  __getstate__(self):
         state = self.__dict__.copy()
@@ -33,36 +36,54 @@ class TF(object):
         del state['train_step']
         del state['sess']
 
+        del state['file_writer']
+        del state['merged']
+
         return state
 
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.build_graph()
         self.start_session()
+        self.init_logging()
 
     def build_graph(self):
 
         # Placeholders for input values.
-        self.x = tf.placeholder(tf.float64, [None, self.n_features], name='x')
-        self.y_ = tf.placeholder(tf.float64, [None, self.n_classes], name='dataset-y')
+        with tf.name_scope('inputs'):
+            self.x = tf.placeholder(tf.float64, [None, self.n_features], name='x')
+            self.y_ = tf.placeholder(tf.float64, [None, self.n_classes], name='dataset-y')
 
         # Variables for computed stuff, we need to initialise them now.
-        W = tf.Variable(tf.zeros([self.n_features, self.n_classes], dtype=tf.float64), name='weights')
-        b = tf.Variable(tf.zeros([self.n_classes], dtype=tf.float64), name='bias')
+        with tf.name_scope('weights'):
+            W = tf.Variable(tf.zeros([self.n_features, self.n_classes], dtype=tf.float64), name='weights')
+            b = tf.Variable(tf.zeros([self.n_classes], dtype=tf.float64), name='bias')
 
         # Predicted y.
-        self.z = tf.matmul(self.x, W) + b
-        self.y = tf.nn.softmax(self.z)
+        with tf.name_scope('activation'):
+            self.z = tf.matmul(self.x, W) + b
+            tf.summary.histogram('predicted_values', self.z)
+            self.y = tf.nn.softmax(self.z)
+            tf.summary.histogram('activations', self.y)
 
-        cross_entropy = - tf.reduce_sum(self.y_ * tf.log(tf.clip_by_value(self.y, -1.0, 1.0)))
-        loss = tf.reduce_mean(cross_entropy)
+        with tf.name_scope('loss'):
+            cross_entropy = - tf.reduce_sum(self.y_ * tf.log(tf.clip_by_value(self.y, -1.0, 1.0)))
+            loss = tf.reduce_mean(cross_entropy)
+            tf.summary.scalar("loss", loss)
 
-        # Calculate decay_rate.
-        global_step = tf.Variable(0, trainable=False)
-        learning_rate = tf.train.exponential_decay(self.starter_learning_rate, global_step,
-            100, 0.96, staircase=True)
+        with tf.name_scope('accuracy'):
+            correct_prediction = tf.equal(tf.argmax(self.y,1), tf.argmax(self.y_,1))
+            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
+        tf.summary.scalar('accuracy', accuracy)
 
-        self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss)
+        with tf.name_scope('minimise'):
+            # Calculate decay_rate.
+            global_step = tf.Variable(0, trainable=False)
+            learning_rate = tf.train.exponential_decay(self.starter_learning_rate, global_step,
+                100, 0.96, staircase=True)
+            tf.summary.scalar("learning_rate", learning_rate)
+
+            self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
 
     def start_session(self):
 
@@ -70,6 +91,10 @@ class TF(object):
 
         init = tf.global_variables_initializer()
         self.sess.run(init)
+
+    def init_logging(self):
+        self.file_writer = tf.summary.FileWriter(self.tensor_logdir, self.sess.graph)
+        self.merged = tf.summary.merge_all()
 
     def get_session(self):
         return self.sess
@@ -86,6 +111,7 @@ class TF(object):
         # batch size and minimum 1 iteration.
         iterations = int(math.ceil(float(n_examples) / float(self.batch_size)))
 
+        index = 0
         for e in range(self.n_epoch):
             for i in range(iterations):
 
@@ -96,7 +122,12 @@ class TF(object):
 
                 batch_xs = X[offset:it_end]
                 batch_ys = y[offset:it_end]
-                self.sess.run(self.train_step, {self.x: batch_xs, self.y_: batch_ys})
+
+                _, summary = self.sess.run([self.train_step, self.merged], {self.x: batch_xs, self.y_: batch_ys})
+
+                # Add the summary data to the file writer.
+                self.file_writer.add_summary(summary, index)
+                index = index + 1
 
     def predict(self, x):
         return self.sess.run(tf.argmax(self.y, 1), {self.x: x})
