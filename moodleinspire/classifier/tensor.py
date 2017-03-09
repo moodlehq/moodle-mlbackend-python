@@ -1,4 +1,5 @@
 import math
+import os
 
 import numpy as np
 from sklearn import preprocessing
@@ -25,7 +26,16 @@ class TF(object):
 
         self.start_session()
 
-        self.init_logging()
+        # During evaluation we process the same dataset multiple times, could could store
+        # each run result to the user but results would be very similar we only do it once
+        # making it simplier to understand and saving disk space.
+        if os.listdir(self.tensor_logdir) == []:
+            self.log_run = True
+            self.init_logging()
+        else:
+            self.log_run = False
+
+
 
     def  __getstate__(self):
         state = self.__dict__.copy()
@@ -135,10 +145,13 @@ class TF(object):
                 batch_xs = X[offset:it_end]
                 batch_ys = y[offset:it_end]
 
-                _, summary = self.sess.run([self.train_step, self.merged], {self.x: batch_xs, self.y_: batch_ys})
+                if self.log_run:
+                    _, summary = self.sess.run([self.train_step, self.merged], {self.x: batch_xs, self.y_: batch_ys})
+                    # Add the summary data to the file writer.
+                    self.file_writer.add_summary(summary, index)
+                else:
+                    self.sess.run(self.train_step, {self.x: batch_xs, self.y_: batch_ys})
 
-                # Add the summary data to the file writer.
-                self.file_writer.add_summary(summary, index)
                 index = index + 1
 
     def predict(self, x):
