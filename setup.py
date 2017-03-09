@@ -44,9 +44,9 @@ setup(
 
     packages=find_packages(),
     install_requires=[
-        'matplotlib==1.5.1',
-        'numpy==1.11',
-        'scikit-learn==0.17.1',
-        'tensorflow==1.0.0rc2',
+        'matplotlib>=1.5.0,<1.6',
+        'numpy>=1.11.0,<1.12',
+        'scikit-learn>=0.17.0,<0.18',
+        'tensorflow>=1.0.0<1.1',
     ],
 )
