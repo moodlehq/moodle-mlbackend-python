@@ -374,7 +374,7 @@ class TensorFlow(Sklearn):
     def get_evaluation_results(self, min_score, accepted_deviation):
 
         results = super(TensorFlow, self).get_evaluation_results(min_score, accepted_deviation)
-        results['info'] = 'Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.get_tensor_logdir() + '\''
+        results['info'].append('Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.get_tensor_logdir() + '\'')
 
         return results
 
