@@ -98,14 +98,13 @@ class TF(object):
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
 
-        with tf.name_scope('minimise'):
-            # Calculate decay_rate.
-            global_step = tf.Variable(0, trainable=False)
-            learning_rate = tf.train.exponential_decay(self.starter_learning_rate, global_step,
-                100, 0.96, staircase=True)
-            tf.summary.scalar("learning_rate", learning_rate)
+        # Calculate decay_rate.
+        global_step = tf.Variable(0, trainable=False)
+        learning_rate = tf.train.exponential_decay(self.starter_learning_rate, global_step,
+            100, 0.96, staircase=False)
+        tf.summary.scalar("learning_rate", learning_rate)
 
-            self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
+        self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
 
     def start_session(self):
 
