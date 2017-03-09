@@ -2,18 +2,22 @@
 from setuptools import setup, find_packages
 # To use a consistent encoding
 from codecs import open
-from os import path
+import os
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
 # Get the long description from the README file
-with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
+with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
+
+# Version read from file.
+version_file = open(os.path.join(here, 'VERSION'))
+version = version_file.read().strip()
 
 setup(
     name='moodleinspire',
 
-    version='0.0.1',
+    version=version,
 
     description='Python predictions processor backend for Moodle Inspire',
     long_description=long_description,
