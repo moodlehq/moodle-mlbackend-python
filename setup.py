@@ -11,7 +11,7 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version read from file.
-version_file = open(os.path.join(here, 'VERSION'))
+version_file = open(os.path.join(here, 'moodleinspire', 'VERSION'))
 version = version_file.read().strip()
 
 setup(
@@ -43,6 +43,9 @@ setup(
     keywords='moodle machine learning numpy scikit-learn tensorflow',
 
     packages=find_packages(),
+    package_data={
+        'moodleinspire': ['VERSION']
+    },
     install_requires=[
         'matplotlib>=1.5.0,<1.6',
         'numpy>=1.11.0,<1.12',
