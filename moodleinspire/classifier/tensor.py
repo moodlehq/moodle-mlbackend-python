@@ -125,7 +125,6 @@ class TF(object):
         n_examples, unused = X.shape
 
         # 1 column per value so will be easier later to make this work with multiple classes.
-        #y = y.astype(float)
         y = preprocessing.MultiLabelBinarizer().fit_transform(y.reshape(len(y), 1))
 
         # floats division otherwise we get 0 if n_examples is lower than the

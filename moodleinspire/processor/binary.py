@@ -108,6 +108,14 @@ class Sklearn(estimator.Classifier):
         if balanced_classes != False:
             logging.warning(balanced_classes)
 
+        # Check that we have samples belonging to all classes.
+        if counts[0] == 0 or counts[1] == 0:
+            result = dict()
+            result['runid'] = int(self.get_runid())
+            result['status'] = estimator.Classifier.GENERAL_ERROR
+            result['info'] = ['The provided dataset does not contain samples for each class']
+            return result
+
         # ROC curve.
         self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
 
