@@ -1,13 +1,16 @@
+"""Tensorflow classifier"""
+
 import math
 import os
 
-import numpy as np
 from sklearn import preprocessing
 import tensorflow as tf
 
 class TF(object):
+    """Tensorflow classifier"""
 
-    def __init__(self, n_features, n_classes, n_epoch, batch_size, starter_learning_rate, tensor_logdir):
+    def __init__(self, n_features, n_classes, n_epoch, batch_size,
+                 starter_learning_rate, tensor_logdir):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
@@ -70,6 +73,7 @@ class TF(object):
             self.init_logging()
 
     def build_graph(self):
+        """Builds the computational graph without feeding any data in"""
 
         # Placeholders for input values.
         with tf.name_scope('inputs'):
@@ -78,7 +82,8 @@ class TF(object):
 
         # Variables for computed stuff, we need to initialise them now.
         with tf.name_scope('weights'):
-            W = tf.Variable(tf.zeros([self.n_features, self.n_classes], dtype=tf.float64), name='weights')
+            W = tf.Variable(tf.zeros([self.n_features, self.n_classes], dtype=tf.float64),
+                            name='weights')
             b = tf.Variable(tf.zeros([self.n_classes], dtype=tf.float64), name='bias')
 
         # Predicted y.
@@ -94,19 +99,20 @@ class TF(object):
             tf.summary.scalar("loss", loss)
 
         with tf.name_scope('accuracy'):
-            correct_prediction = tf.equal(tf.argmax(self.y,1), tf.argmax(self.y_,1))
+            correct_prediction = tf.equal(tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
 
         # Calculate decay_rate.
         global_step = tf.Variable(0, trainable=False)
         learning_rate = tf.train.exponential_decay(self.starter_learning_rate, global_step,
-            100, 0.96, staircase=False)
+                                                   100, 0.96, staircase=False)
         tf.summary.scalar("learning_rate", learning_rate)
 
         self.train_step = tf.train.GradientDescentOptimizer(learning_rate).minimize(loss, global_step=global_step)
 
     def start_session(self):
+        """Starts the session"""
 
         self.sess = tf.Session()
 
@@ -114,15 +120,18 @@ class TF(object):
         self.sess.run(init)
 
     def init_logging(self):
+        """Starts logging the tensors state"""
         self.file_writer = tf.summary.FileWriter(self.tensor_logdir, self.sess.graph)
         self.merged = tf.summary.merge_all()
 
     def get_session(self):
+        """Return the session"""
         return self.sess
 
     def fit(self, X, y):
+        """Fits provided data into the session"""
 
-        n_examples, unused = X.shape
+        n_examples, _ = X.shape
 
         # 1 column per value so will be easier later to make this work with multiple classes.
         y = preprocessing.MultiLabelBinarizer().fit_transform(y.reshape(len(y), 1))
@@ -132,10 +141,10 @@ class TF(object):
         iterations = int(math.ceil(float(n_examples) / float(self.batch_size)))
 
         index = 0
-        for e in range(self.n_epoch):
-            for i in range(iterations):
+        for _ in range(self.n_epoch):
+            for j in range(iterations):
 
-                offset = i * self.batch_size
+                offset = j * self.batch_size
                 it_end = offset + self.batch_size
                 if it_end > n_examples:
                     it_end = n_examples - 1
@@ -144,7 +153,8 @@ class TF(object):
                 batch_ys = y[offset:it_end]
 
                 if self.log_run:
-                    _, summary = self.sess.run([self.train_step, self.merged], {self.x: batch_xs, self.y_: batch_ys})
+                    _, summary = self.sess.run([self.train_step, self.merged],
+                                               {self.x: batch_xs, self.y_: batch_ys})
                     # Add the summary data to the file writer.
                     self.file_writer.add_summary(summary, index)
                 else:
@@ -153,8 +163,9 @@ class TF(object):
                 index = index + 1
 
     def predict(self, x):
+        """Returns predictions"""
         return self.sess.run(tf.argmax(self.y, 1), {self.x: x})
 
     def predict_proba(self, x):
+        """Returns predicted probabilities"""
         return self.sess.run(self.z, {self.x: x})
-

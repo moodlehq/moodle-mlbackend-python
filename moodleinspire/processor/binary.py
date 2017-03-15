@@ -1,14 +1,14 @@
+"""Binary classification module"""
+
 import os
 import math
 import logging
-import resource
 
 import numpy as np
 from sklearn.cross_validation import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_curve, auc
 from sklearn.linear_model import LogisticRegressionCV
-import tensorflow.contrib.learn as skflow
 import tensorflow as tf
 
 from . import estimator
@@ -16,6 +16,7 @@ from ..classifier import tensor
 from .. import chart
 
 class Sklearn(estimator.Classifier):
+    """sciki-learn based binary classification manager"""
 
     def __init__(self, modelid, directory):
 
@@ -24,27 +25,31 @@ class Sklearn(estimator.Classifier):
         self.aucs = []
         self.classes = [1, 0]
 
+        self.roc_curve_plot = None
 
     def train(self, X_train, y_train, classifier=False):
+        """Train the classifier with the provided training data"""
 
-        if classifier == False:
+        if classifier is False:
             # Init the classifier.
             classifier = self.get_classifier(X_train, y_train)
 
         # Fit the training set. y should be an array-like.
-        classifier.fit(X_train, y_train[:,0])
+        classifier.fit(X_train, y_train[:, 0])
 
         # Returns the trained classifier.
         return classifier
 
 
     def classifier_exists(self):
+        """Checks if there is a previously stored classifier"""
 
         classifier_dir = os.path.join(self.persistencedir, estimator.Classifier.PERSIST_FILENAME)
         return os.path.isfile(classifier_dir)
 
     def train_dataset(self, filepath):
-        # TODO Move this to Classifier and make it multiple classes compatible.
+        """Train the model with the provided dataset
+        TODO Move this to Classifier and make it multiple classes compatible."""
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
@@ -66,11 +71,12 @@ class Sklearn(estimator.Classifier):
 
 
     def predict_dataset(self, filepath):
-        # TODO Move this to Classifier and make it multiple classes compatible.
+        """Predict labels for the provided dataset
+        TODO Move this to Classifier and make it multiple classes compatible."""
 
         [sampleids, x] = self.get_unlabelled_samples(filepath)
 
-        if self.classifier_exists() == False:
+        if self.classifier_exists() is False:
             result = dict()
             result['status'] = estimator.Classifier.NO_DATASET
             result['info'] = ['Provided model have not been trained yet']
@@ -87,14 +93,16 @@ class Sklearn(estimator.Classifier):
         result = dict()
         result['status'] = estimator.Classifier.OK
         result['info'] = []
-        # First column sampleids, second the prediction and third how reliable is the prediction (from 0 to 1).
+        # First column sampleids, second the prediction and third how
+        # reliable is the prediction (from 0 to 1).
         result['predictions'] = np.vstack((sampleids, y_pred, probabilities)).T.tolist()
 
         return result
 
 
     def evaluate_dataset(self, filepath, min_score=0.6, accepted_deviation=0.02, n_test_runs=100):
-        # TODO Move this to Classifier and make it multiple classes compatible.
+        """Evaluate the model using the provided dataset
+        TODO Move this to Classifier and make it multiple classes compatible."""
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
@@ -103,7 +111,7 @@ class Sklearn(estimator.Classifier):
         y_array = np.array(self.y.T[0])
         counts.append(np.count_nonzero(y_array))
         counts.append(len(y_array) - np.count_nonzero(y_array))
-        logging.info('Number of samples by y value: %s' % str(counts))
+        logging.info('Number of samples by y value: %s', str(counts))
         balanced_classes = self.check_classes_balance(counts)
         if balanced_classes != False:
             logging.warning(balanced_classes)
@@ -129,7 +137,7 @@ class Sklearn(estimator.Classifier):
             # is small.
             logging.info('Learning curve generation skipped, not enough samples')
 
-        for i in range(0, n_test_runs):
+        for _ in range(0, n_test_runs):
 
             # Split samples into training set and test set (80% - 20%)
             X_train, X_test, y_train, y_test = train_test_split(self.X, self.y, test_size=0.2)
@@ -139,8 +147,7 @@ class Sklearn(estimator.Classifier):
             self.rate_prediction(classifier, X_test, y_test)
 
         # Store the roc curve.
-        fig_filepath = self.roc_curve_plot.store()
-        logging.info("Figure stored in " + fig_filepath)
+        logging.info("Figure stored in " + self.roc_curve_plot.store())
 
         # Return results.
         result = self.get_evaluation_results(min_score, accepted_deviation)
@@ -148,30 +155,32 @@ class Sklearn(estimator.Classifier):
         # Add the run id to identify it in the caller.
         result['runid'] = int(self.get_runid())
 
-        logging.info("Accuracy: %.2f%%" % (result['accuracy'] * 100))
-        logging.info("Precision (predicted elements that are real): %.2f%%" % (result['precision'] * 100))
-        logging.info("Recall (real elements that are predicted): %.2f%%" % (result['recall'] * 100))
-        logging.info("Score: %.2f%%" % (result['score'] * 100))
-        logging.info("AUC standard desviation: %.4f" % (result['auc_deviation']))
+        logging.info("Accuracy: %.2f%%", result['accuracy'] * 100)
+        logging.info("Precision (predicted elements that are real): %.2f%%",
+                     result['precision'] * 100)
+        logging.info("Recall (real elements that are predicted): %.2f%%", result['recall'] * 100)
+        logging.info("Score: %.2f%%", result['score'] * 100)
+        logging.info("AUC standard desviation: %.4f", result['auc_deviation'])
 
         return result
 
 
     def rate_prediction(self, classifier, X_test, y_test):
+        """Rate a trained classifier with test data"""
 
         # Calculate scores.
-        y_score = self.get_score(classifier, X_test, y_test[:,0])
+        y_score = self.get_score(classifier, X_test, y_test[:, 0])
         y_pred = classifier.predict(X_test)
 
         # Transform it to an array.
         y_test = y_test.T[0]
 
         # Calculate accuracy, sensitivity and specificity.
-        [acc, prec, rec, ph] = self.calculate_metrics(y_test == 1, y_pred == 1)
+        [acc, prec, rec, phi] = self.calculate_metrics(y_test == 1, y_pred == 1)
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
-        self.phis.append(ph)
+        self.phis.append(phi)
 
         # ROC curve calculations.
         fpr, tpr, _ = roc_curve(y_test, y_score)
@@ -189,7 +198,9 @@ class Sklearn(estimator.Classifier):
         self.roc_curve_plot.add(fpr, tpr, 'Positives')
 
 
-    def get_score(self, classifier, X_test, y_test):
+    @staticmethod
+    def get_score(classifier, X_test, y_test):
+        """Returns the trained classifier score"""
 
         probs = classifier.predict_proba(X_test)
 
@@ -199,7 +210,9 @@ class Sklearn(estimator.Classifier):
         return probs[range(n_samples), y_test]
 
 
-    def calculate_metrics(self, y_test_true, y_pred_true):
+    @staticmethod
+    def calculate_metrics(y_test_true, y_pred_true):
+        """Calculates confusion matrix metrics"""
 
         test_p = y_test_true
         test_n = np.invert(test_p)
@@ -226,7 +239,7 @@ class Sklearn(estimator.Classifier):
 
         denominator = (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)
         if denominator != 0:
-            phi = ( ( tp * tn) - (fp * fn) ) / math.sqrt(denominator)
+            phi = ((tp * tn) - (fp * fn)) / math.sqrt(denominator)
         else:
             phi = 0
 
@@ -234,6 +247,7 @@ class Sklearn(estimator.Classifier):
 
 
     def get_evaluation_results(self, min_score, accepted_deviation):
+        """Returns the evaluation results after all iterations"""
 
         avg_accuracy = np.mean(self.accuracies)
         avg_precision = np.mean(self.precisions)
@@ -263,57 +277,60 @@ class Sklearn(estimator.Classifier):
         # this model is reliable or not.
         auc_deviation = np.std(self.aucs)
         if auc_deviation > accepted_deviation:
-            result['info'].append('The evaluation results varied too much,'
-                + ' we need more samples to check if this model is valid.'
-                + ' Model deviation = %f, accepted deviation = %f' \
-                % (auc_deviation, accepted_deviation))
+            result['info'].append('The evaluation results varied too much, we need more samples '
+                                  + 'to check if this model is valid. Model deviation = %f, '
+                                  + 'accepted deviation = %f', auc_deviation, accepted_deviation)
             result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
 
         if score < min_score:
-            result['info'].append('The evaluated model prediction accuracy is not very good. Model score ='
-                + ' %f, minimum score = %f' \
-                % (score, min_score))
+            result['info'].append('The evaluated model prediction accuracy is not very good.'
+                                  + ' Model score = %f, minimum score = %f', score, min_score)
             result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE
 
         if auc_deviation > accepted_deviation and score < min_score:
-            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE + estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE + \
+                estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
 
         return result
 
 
     def store_learning_curve(self):
-        lc = chart.LearningCurve(self.logsdir)
-        lc.set_classifier(self.get_classifier(self.X, self.y))
-        lc_filepath = lc.save(self.X, self.y)
+        """Stores the learning curve of this evaluation"""
+
+        learning_curve = chart.LearningCurve(self.logsdir)
+        learning_curve.set_classifier(self.get_classifier(self.X, self.y))
+        lc_filepath = learning_curve.store(self.X, self.y)
         logging.info("Figure stored in " + lc_filepath)
 
 
     def get_classifier(self, X, y):
+        """Returns a logistic regression classifier after cross-validation"""
 
         solver = 'liblinear'
         multi_class = 'ovr'
 
-        if hasattr(self, 'C') == False:
+        if hasattr(self, 'C') is False:
 
             # Cross validation - to select the best constants.
-            lgcv = LogisticRegressionCV(solver=solver, multi_class=multi_class);
-            lgcv.fit(X, y[:,0])
+            lgcv = LogisticRegressionCV(solver=solver, multi_class=multi_class)
+            lgcv.fit(X, y[:, 0])
 
             if len(lgcv.C_) == 1:
-                self.C = lgcv.C_[0]
+                C = lgcv.C_[0]
             else:
                 # Chose the best C = the class with more samples.
                 # Ideally multiclass problems will be multinomial.
-                [values, counts] = np.unique(y[:,0], return_counts=True)
-                self.C = lgcv.C_[np.argmax(counts)]
-                logging.info('From all classes best C values (%s), %f has been selected' % (str(lgcv.C_), C))
-            print("Best C: %f" % (self.C))
+                [_, counts] = np.unique(y[:, 0], return_counts=True)
+                C = lgcv.C_[np.argmax(counts)]
+                logging.info('From all classes best C values (%s), %f has been selected',
+                             str(lgcv.C_), C)
+            print "Best C: %f", C
 
-        return LogisticRegression(solver=solver, tol=1e-1, C=self.C)
+        return LogisticRegression(solver=solver, tol=1e-1, C=C)
 
 
-    def reset_rates(self):
-        super(Sklearn, self).reset_rates()
+    def reset_metrics(self):
+        super(Sklearn, self).reset_metrics()
         self.aucs = []
 
         # ROC curve.
@@ -321,51 +338,56 @@ class Sklearn(estimator.Classifier):
 
 
 class TensorFlow(Sklearn):
+    """Binary classifier using tensorflow"""
 
     def __init__(self, modelid, directory):
 
         super(TensorFlow, self).__init__(modelid, directory)
 
         self.tensor_logdir = self.get_tensor_logdir()
-        if os.path.isdir(self.tensor_logdir) == False:
-            if os.makedirs(self.tensor_logdir) == False:
+        if os.path.isdir(self.tensor_logdir) is False:
+            if os.makedirs(self.tensor_logdir) is False:
                 raise OSError('Directory ' + self.tensor_logdir + ' can not be created.')
 
 
     def get_classifier(self, X, y):
+        """Gets the classifier
+        TODO In future we don't want to hardcode 2 classes"""
 
         n_epoch = 10
         batch_size = 1000
         starter_learning_rate = 0.01
 
-        unused, n_features = X.shape
+        _, n_features = X.shape
 
-        # TODO Using 2 classes. Extra argument required if we want
-        # this to work with more than 2 classes
         n_classes = 2
 
-        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate, self.get_tensor_logdir())
+        return tensor.TF(n_features, n_classes, n_epoch, batch_size, starter_learning_rate,
+                         self.get_tensor_logdir())
 
     def get_tensor_logdir(self):
+        """Returns the directory to store tensorflow framework logs"""
         return os.path.join(self.logsdir, 'tensor')
 
     def store_classifier(self, trained_classifier):
+        """Stores the classifier and saves a checkpoint of the tensors state"""
 
         # Store the graph state.
         saver = tf.train.Saver()
         sess = trained_classifier.get_session()
 
         path = os.path.join(self.persistencedir, 'model.ckpt')
-        save_path = saver.save(sess, path)
+        saver.save(sess, path)
 
         # Also save it to the logs dir to see the embeddings.
         path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
-        save_path = saver.save(sess, path)
+        saver.save(sess, path)
 
         # Save the class data.
         super(TensorFlow, self).store_classifier(trained_classifier)
 
     def load_classifier(self):
+        """Loads a previously trained classifier and restores its tensors state"""
 
         classifier = super(TensorFlow, self).load_classifier()
         classifier.set_tensor_logdir(self.get_tensor_logdir())
@@ -382,6 +404,7 @@ class TensorFlow(Sklearn):
     def get_evaluation_results(self, min_score, accepted_deviation):
 
         results = super(TensorFlow, self).get_evaluation_results(min_score, accepted_deviation)
-        results['info'].append('Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.get_tensor_logdir() + '\'')
+        results['info'].append('Launch TensorBoard from command line by typing: '
+                               + 'tensorboard --logdir=\'' + self.get_tensor_logdir() + '\'')
 
         return results

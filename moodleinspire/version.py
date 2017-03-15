@@ -1,10 +1,15 @@
+"""Utility module to print the package version"""
+
 import os
-import sys
 
-# Version read from file.
-here = os.path.abspath(os.path.dirname(__file__))
-version_file = open(os.path.join(here, 'VERSION'))
-version = version_file.read().strip()
+def print_version():
+    """Prints moodleinspire package version"""
 
-print(version)
-sys.exit(0)
+    # Version read from file.
+    here = os.path.abspath(os.path.dirname(__file__))
+    version_file = open(os.path.join(here, 'VERSION'))
+    version = version_file.read().strip()
+
+    print version
+
+print_version()

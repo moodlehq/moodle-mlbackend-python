@@ -1,28 +1,32 @@
+"""Charts module"""
+
 import os
-import math
 
 import numpy as np
+from sklearn.learning_curve import learning_curve
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-from sklearn.learning_curve import learning_curve
-
 class LearningCurve(object):
+    """scikit-learn Learning curve class"""
 
     def __init__(self, dirname):
         self.dirname = dirname
+        self.classifier = None
 
     def set_classifier(self, classifier):
+        """Set a classifier"""
         self.classifier = classifier
 
-    def save(self, X, y, figure_id=1):
+    def store(self, X, y, figure_id=1):
+        """Save the learning curve"""
 
         plt.figure(figure_id)
         plt.xlabel("Training samples")
         plt.ylabel("Error")
 
-        train_sizes, train_scores, test_scores = learning_curve(self.classifier, X, y[:,0])
+        train_sizes, train_scores, test_scores = learning_curve(self.classifier, X, y[:, 0])
 
         train_error_mean = 1 - np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
@@ -51,17 +55,19 @@ class LearningCurve(object):
 
 
 class RocCurve(object):
-
-    dirname = ''
+    """Class to generate a ROC curve chart through scikit-learn"""
 
     def __init__(self, dirname, figid):
         self.dirname = dirname
         plt.figure(figid)
 
-    def add(self, fpr, tpr, label):
+    @staticmethod
+    def add(fpr, tpr, label):
+        """Add data to the chart"""
         plt.plot(fpr, tpr, label=label)
 
     def store(self):
+        """Store the ROC curve"""
         plt.plot([0, 1], [0, 1], 'k--')
         plt.xlim([0.0, 1.0])
         plt.ylim([0.0, 1.05])
