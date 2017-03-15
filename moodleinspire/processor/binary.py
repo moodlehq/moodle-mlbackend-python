@@ -385,18 +385,3 @@ class TensorFlow(Sklearn):
         results['info'].append('Launch TensorBoard from command line by typing: tensorboard --logdir=\'' + self.get_tensor_logdir() + '\'')
 
         return results
-
-
-class Skflow(Sklearn):
-
-    def store_learning_curve(self):
-        pass
-
-    def get_classifier(self, X, y):
-        return skflow.TensorFlowLinearClassifier(n_classes=2)
-
-
-class DNN(Skflow):
-
-    def get_classifier(self, X, y):
-        return skflow.TensorFlowDNNClassifier(hidden_units=[5, 3], n_classes=2)
