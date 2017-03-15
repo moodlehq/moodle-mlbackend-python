@@ -279,12 +279,14 @@ class Sklearn(estimator.Classifier):
         if auc_deviation > accepted_deviation:
             result['info'].append('The evaluation results varied too much, we need more samples '
                                   + 'to check if this model is valid. Model deviation = ' +
-                                  auc_deviation + ', accepted deviation = ' + accepted_deviation)
+                                  str(auc_deviation) + ', accepted deviation = ' +
+                                  str(accepted_deviation))
             result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
 
         if score < min_score:
             result['info'].append('The evaluated model prediction accuracy is not very good.'
-                                  + ' Model score = ' + score + ', minimum score = ' + min_score)
+                                  + ' Model score = ' + str(score) + ', minimum score = ' +
+                                  str(min_score))
             result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE
 
         if auc_deviation > accepted_deviation and score < min_score:
