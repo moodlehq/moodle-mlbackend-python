@@ -1,5 +1,6 @@
 """Training module"""
 
+from __future__ import print_function
 import sys
 import json
 import time
@@ -21,7 +22,7 @@ def training():
     - The training file\
     Received: ' + ' '.join(sys.argv)]
 
-        print json.dumps(result)
+        print(json.dumps(result))
         sys.exit(result['status'])
 
     modelid = sys.argv[1]
@@ -34,7 +35,7 @@ def training():
 
     result = binary_classifier.train_dataset(sys.argv[3])
 
-    print json.dumps(result)
+    print(json.dumps(result))
     sys.exit(result['status'])
 
 training()

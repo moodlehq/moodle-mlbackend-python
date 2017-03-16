@@ -1,5 +1,7 @@
 """Binary classification module"""
 
+from __future__ import division
+
 import os
 import math
 import logging
@@ -227,13 +229,13 @@ class Sklearn(estimator.Classifier):
         fn = np.count_nonzero(test_p * pred_n)
         fp = np.count_nonzero(test_n * pred_p)
 
-        accuracy = (tp + tn) / float(pp + nn)
+        accuracy = (tp + tn) / (pp + nn)
         if tp != 0 or fp != 0:
-            precision = tp / float(tp + fp)
+            precision = tp / (tp + fp)
         else:
             precision = 0
         if tp != 0 or fn != 0:
-            recall = tp / float(tp + fn)
+            recall = tp / (tp + fn)
         else:
             recall = 0
 
@@ -326,7 +328,7 @@ class Sklearn(estimator.Classifier):
                 C = lgcv.C_[np.argmax(counts)]
                 logging.info('From all classes best C values (%s), %f has been selected',
                              str(lgcv.C_), C)
-            print "Best C: %f", C
+            logging.info("Best C: %f", C)
 
         return LogisticRegression(solver=solver, tol=1e-1, C=C)
 

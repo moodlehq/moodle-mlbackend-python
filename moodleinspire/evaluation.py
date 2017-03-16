@@ -1,4 +1,6 @@
 """Models' evaluation module"""
+
+from __future__ import print_function
 import sys
 import json
 import time
@@ -24,7 +26,7 @@ def evaluation():
     - The number of times the evaluation will run (defaults to 100)\
     Received: ' + ' '.join(sys.argv)]
 
-        print json.dumps(result)
+        print(json.dumps(result))
         sys.exit(result['status'])
 
     modelid = sys.argv[1]
@@ -38,7 +40,7 @@ def evaluation():
     result = binary_classifier.evaluate_dataset(sys.argv[3], float(sys.argv[4]),
                                                 float(sys.argv[5]), int(sys.argv[6]))
 
-    print json.dumps(result)
+    print(json.dumps(result))
     sys.exit(result['status'])
 
 evaluation()

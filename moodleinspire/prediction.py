@@ -1,5 +1,6 @@
 """Prediction module"""
 
+from __future__ import print_function
 import sys
 import json
 import time
@@ -22,7 +23,7 @@ def prediction():
     - The file with samples to predict\
     Received: ' + ' '.join(sys.argv)]
 
-        print json.dumps(result)
+        print(json.dumps(result))
         sys.exit(result['status'])
 
     modelid = sys.argv[1]
@@ -35,7 +36,7 @@ def prediction():
 
     result = binary_classifier.predict_dataset(sys.argv[3])
 
-    print json.dumps(result)
+    print(json.dumps(result))
     sys.exit(result['status'])
 
 prediction()

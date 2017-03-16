@@ -38,6 +38,7 @@ setup(
         'Topic :: Education',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3.4',
     ],
 
     keywords='moodle machine learning numpy scikit-learn tensorflow',

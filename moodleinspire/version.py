@@ -1,5 +1,6 @@
 """Utility module to print the package version"""
 
+from __future__ import print_function
 import os
 
 def print_version():
@@ -10,6 +11,6 @@ def print_version():
     version_file = open(os.path.join(here, 'VERSION'))
     version = version_file.read().strip()
 
-    print version
+    print(version)
 
 print_version()

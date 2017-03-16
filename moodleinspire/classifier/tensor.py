@@ -1,5 +1,7 @@
 """Tensorflow classifier"""
 
+from __future__ import division
+
 import math
 import os
 
@@ -138,7 +140,7 @@ class TF(object):
 
         # floats division otherwise we get 0 if n_examples is lower than the
         # batch size and minimum 1 iteration.
-        iterations = int(math.ceil(float(n_examples) / float(self.batch_size)))
+        iterations = int(math.ceil(n_examples / self.batch_size))
 
         index = 0
         for _ in range(self.n_epoch):
