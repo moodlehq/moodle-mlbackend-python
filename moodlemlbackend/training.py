@@ -5,8 +5,8 @@ import sys
 import json
 import time
 
-from moodleinspire.processor import estimator
-from moodleinspire.processor import binary
+from moodlemlbackend.processor import estimator
+from moodlemlbackend.processor import binary
 
 def training():
     """Delegates training to train_dataset."""

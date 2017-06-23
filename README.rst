@@ -1,4 +1,4 @@
-Python predictions processor backend for Moodle inspire
+Python machine learning backend for Moodle
 =======================================================
 
-This package is used by Moodle's predict_python plugin to process predictions.
+This package is used by Moodle's mlbackend_python plugin.

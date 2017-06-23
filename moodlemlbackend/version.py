@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 
 def print_version():
-    """Prints moodleinspire package version"""
+    """Prints moodlemlbackend package version"""
 
     # Version read from file.
     here = os.path.abspath(os.path.dirname(__file__))

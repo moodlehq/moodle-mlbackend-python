@@ -11,19 +11,19 @@ with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Version read from file.
-version_file = open(os.path.join(here, 'moodleinspire', 'VERSION'))
+version_file = open(os.path.join(here, 'moodlemlbackend', 'VERSION'))
 version = version_file.read().strip()
 
 setup(
-    name='moodleinspire',
+    name='moodlemlbackend',
 
     version=version,
 
-    description='Python predictions processor backend for Moodle Inspire',
+    description='Python machine learning backend used by mlbackend_python Moodle plugin',
     long_description=long_description,
 
     # The project's main homepage.
-    url='https://github.com/dmonllao/moodleinspire-python-backend',
+    url='https://github.com/moodlehq/moodle-mlbackend-python',
 
     # Author details
     author='David Monllao',
@@ -45,7 +45,7 @@ setup(
 
     packages=find_packages(),
     package_data={
-        'moodleinspire': ['VERSION']
+        'moodlemlbackend': ['VERSION']
     },
     install_requires=[
         'matplotlib>=1.5.0,<1.6',
