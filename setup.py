@@ -26,8 +26,8 @@ setup(
     url='https://github.com/moodlehq/moodle-mlbackend-python',
 
     # Author details
-    author='David Monllao',
-    author_email='davidm@moodle.com',
+    author='Moodle HQ',
+    author_email='integration@moodle.com',
 
     # Choose your license
     license='GPLv3',
