@@ -2,9 +2,10 @@
 
 from __future__ import division
 
-import os
 import math
 import logging
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import numpy as np
 from sklearn.cross_validation import train_test_split
