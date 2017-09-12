@@ -17,8 +17,8 @@ class Classifier(object):
     OK = 0
     GENERAL_ERROR = 1
     NO_DATASET = 2
-    EVALUATE_LOW_SCORE = 4
-    EVALUATE_NOT_ENOUGH_DATA = 8
+    LOW_SCORE = 4
+    NOT_ENOUGH_DATA = 8
 
     def __init__(self, modelid, directory):
 

@@ -58,7 +58,7 @@ class Sklearn(estimator.Classifier):
         if len(np.unique(self.y)) < 2:
             # We need samples belonging to all different classes.
             result = dict()
-            result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.NOT_ENOUGH_DATA
             result['info'] = []
             result['errors'] = 'Training data needs to include samples belonging to all classes'
             return result
@@ -291,17 +291,17 @@ class Sklearn(estimator.Classifier):
                                   + 'to check if this model is valid. Model deviation = ' +
                                   str(auc_deviation) + ', accepted deviation = ' +
                                   str(accepted_deviation))
-            result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.NOT_ENOUGH_DATA
 
         if score < min_score:
             result['info'].append('The evaluated model prediction accuracy is not very good.'
                                   + ' Model score = ' + str(score) + ', minimum score = ' +
                                   str(min_score))
-            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE
+            result['status'] = estimator.Classifier.LOW_SCORE
 
         if auc_deviation > accepted_deviation and score < min_score:
-            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE + \
-                estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.LOW_SCORE + \
+                estimator.Classifier.NOT_ENOUGH_DATA
 
         return result
 
