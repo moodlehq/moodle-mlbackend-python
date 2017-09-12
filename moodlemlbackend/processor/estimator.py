@@ -26,7 +26,8 @@ class Classifier(object):
 
         self.modelid = modelid
 
-        self.runid = str(int(time.time()))
+        # Using milliseconds to avoid collisions.
+        self.runid = str(int(time.time() * 1000))
 
         self.persistencedir = os.path.join(directory, 'classifier')
         if os.path.isdir(self.persistencedir) is False:
