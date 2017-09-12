@@ -86,6 +86,11 @@ class Classifier(object):
                                 missing_values='', filling_values=False)
         samples = shuffle(samples)
 
+        # This is a single sample dataset, genfromtxt returns the samples
+        # as a one dimension array, we don't want that.
+        if samples.ndim == 1:
+            samples = np.array([samples])
+
         # All columns but the last one.
         X = np.array(samples[:, 0:-1])
 
@@ -107,6 +112,12 @@ class Classifier(object):
         # We don't know the number of columns, we can only get them all and discard the first one.
         samples = np.genfromtxt(filepath, delimiter=',', dtype=float, skip_header=3,
                                 missing_values='', filling_values=False)
+
+        # This is a single sample dataset, genfromtxt returns the samples
+        # as a one dimension array, we don't want that.
+        if samples.ndim == 1:
+            samples = np.array([samples])
+
         x = samples[:, 1:]
 
         return [sampleids, x]

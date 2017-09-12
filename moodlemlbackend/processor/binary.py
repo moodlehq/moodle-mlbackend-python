@@ -55,6 +55,14 @@ class Sklearn(estimator.Classifier):
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
+        if len(np.unique(self.y)) < 2:
+            # We need samples belonging to all different classes.
+            result = dict()
+            result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['info'] = []
+            result['errors'] = 'Training data needs to include samples belonging to all classes'
+            return result
+
         # Load the loaded model if it exists.
         if self.classifier_exists():
             classifier = self.load_classifier()
