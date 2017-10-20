@@ -2,9 +2,10 @@
 
 from __future__ import division
 
-import os
 import math
 import logging
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import numpy as np
 from sklearn.cross_validation import train_test_split
@@ -54,6 +55,14 @@ class Sklearn(estimator.Classifier):
         TODO Move this to Classifier and make it multiple classes compatible."""
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
+
+        if len(np.unique(self.y)) < 2:
+            # We need samples belonging to all different classes.
+            result = dict()
+            result['status'] = estimator.Classifier.NOT_ENOUGH_DATA
+            result['info'] = []
+            result['errors'] = 'Training data needs to include samples belonging to all classes'
+            return result
 
         # Load the loaded model if it exists.
         if self.classifier_exists():
@@ -283,17 +292,17 @@ class Sklearn(estimator.Classifier):
                                   + 'to check if this model is valid. Model deviation = ' +
                                   str(auc_deviation) + ', accepted deviation = ' +
                                   str(accepted_deviation))
-            result['status'] = estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.NOT_ENOUGH_DATA
 
         if score < min_score:
             result['info'].append('The evaluated model prediction accuracy is not very good.'
                                   + ' Model score = ' + str(score) + ', minimum score = ' +
                                   str(min_score))
-            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE
+            result['status'] = estimator.Classifier.LOW_SCORE
 
         if auc_deviation > accepted_deviation and score < min_score:
-            result['status'] = estimator.Classifier.EVALUATE_LOW_SCORE + \
-                estimator.Classifier.EVALUATE_NOT_ENOUGH_DATA
+            result['status'] = estimator.Classifier.LOW_SCORE + \
+                estimator.Classifier.NOT_ENOUGH_DATA
 
         return result
 

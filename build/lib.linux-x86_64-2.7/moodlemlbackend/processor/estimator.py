@@ -17,8 +17,8 @@ class Classifier(object):
     OK = 0
     GENERAL_ERROR = 1
     NO_DATASET = 2
-    EVALUATE_LOW_SCORE = 4
-    EVALUATE_NOT_ENOUGH_DATA = 8
+    LOW_SCORE = 4
+    NOT_ENOUGH_DATA = 8
 
     def __init__(self, modelid, directory):
 
@@ -26,7 +26,8 @@ class Classifier(object):
 
         self.modelid = modelid
 
-        self.runid = str(int(time.time()))
+        # Using milliseconds to avoid collisions.
+        self.runid = str(int(time.time() * 1000))
 
         self.persistencedir = os.path.join(directory, 'classifier')
         if os.path.isdir(self.persistencedir) is False:
@@ -86,6 +87,11 @@ class Classifier(object):
                                 missing_values='', filling_values=False)
         samples = shuffle(samples)
 
+        # This is a single sample dataset, genfromtxt returns the samples
+        # as a one dimension array, we don't want that.
+        if samples.ndim == 1:
+            samples = np.array([samples])
+
         # All columns but the last one.
         X = np.array(samples[:, 0:-1])
 
@@ -107,6 +113,12 @@ class Classifier(object):
         # We don't know the number of columns, we can only get them all and discard the first one.
         samples = np.genfromtxt(filepath, delimiter=',', dtype=float, skip_header=3,
                                 missing_values='', filling_values=False)
+
+        # This is a single sample dataset, genfromtxt returns the samples
+        # as a one dimension array, we don't want that.
+        if samples.ndim == 1:
+            samples = np.array([samples])
+
         x = samples[:, 1:]
 
         return [sampleids, x]
