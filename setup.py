@@ -52,6 +52,6 @@ setup(
         'numpy>=1.11.0,<1.12',
         'scikit-learn>=0.17.0,<0.18',
         'scipy>=0.17.0,<0.18',
-        'tensorflow>=1.0.0<1.1',
+        'tensorflow>=1.0.0,<1.1',
     ],
 )
