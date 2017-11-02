@@ -19,13 +19,14 @@ class TF(object):
         self.batch_size = batch_size
         self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
+        self.n_hidden = 10
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
         self.x = None
         self.y_ = None
         self.y = None
-        self.z = None
+        self.probs = None
         self.loss = None
 
         self.build_graph()
@@ -48,7 +49,7 @@ class TF(object):
         del state['x']
         del state['y_']
         del state['y']
-        del state['z']
+        del state['probs']
         del state['train_step']
         del state['sess']
 
@@ -84,21 +85,28 @@ class TF(object):
             self.y_ = tf.placeholder(tf.float64, [None, self.n_classes], name='dataset-y')
 
         # Variables for computed stuff, we need to initialise them now.
-        with tf.name_scope('weights'):
-            W = tf.Variable(tf.zeros([self.n_features, self.n_classes], dtype=tf.float64),
-                            name='weights')
-            b = tf.Variable(tf.zeros([self.n_classes], dtype=tf.float64), name='bias')
+        with tf.name_scope('initialise-vars'):
+            W = {
+                'input-hidden': tf.Variable(tf.random_normal([self.n_features, self.n_hidden], dtype=tf.float64),
+                            name='input-to-hidden-weights'),
+                'hidden-output': tf.Variable(tf.random_normal([self.n_hidden, self.n_classes], dtype=tf.float64),
+                            name='hidden-to-output-weights'),
+            }
+
+            b = {
+                'input-hidden': tf.Variable(tf.random_normal([self.n_hidden], dtype=tf.float64), name='hidden-bias'),
+                'hidden-output': tf.Variable(tf.random_normal([self.n_classes], dtype=tf.float64), name='output-bias'),
+            }
 
         # Predicted y.
-        with tf.name_scope('activation'):
-            self.z = tf.matmul(self.x, W) + b
-            tf.summary.histogram('predicted_values', self.z)
-            self.y = tf.nn.softmax(self.z)
+        with tf.name_scope('loss'):
+            hidden = tf.nn.relu(tf.matmul(self.x, W['input-hidden']) + b['input-hidden'], name='activation-function')
+            self.probs = tf.matmul(hidden, W['hidden-output']) + b['hidden-output']
+            tf.summary.histogram('predicted_values', self.probs)
+            self.y = tf.nn.softmax(self.probs)
             tf.summary.histogram('activations', self.y)
 
-        with tf.name_scope('loss'):
-            cross_entropy = - tf.reduce_sum(self.y_ * tf.log(tf.clip_by_value(self.y, -1.0, 1.0)))
-            loss = tf.reduce_mean(cross_entropy)
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.probs, labels=self.y_))
             tf.summary.scalar("loss", loss)
 
         with tf.name_scope('accuracy'):
@@ -171,4 +179,4 @@ class TF(object):
 
     def predict_proba(self, x):
         """Returns predicted probabilities"""
-        return self.sess.run(self.z, {self.x: x})
+        return self.sess.run(self.probs, {self.x: x})

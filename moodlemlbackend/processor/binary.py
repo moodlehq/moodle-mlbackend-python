@@ -367,9 +367,9 @@ class TensorFlow(Sklearn):
         """Gets the classifier
         TODO In future we don't want to hardcode 2 classes"""
 
-        n_epoch = 10
+        n_epoch = 50
         batch_size = 1000
-        starter_learning_rate = 0.01
+        starter_learning_rate = 0.5
 
         _, n_features = X.shape
 
