@@ -100,7 +100,7 @@ class TF(object):
 
         # Predicted y.
         with tf.name_scope('loss'):
-            hidden = tf.nn.relu(tf.matmul(self.x, W['input-hidden']) + b['input-hidden'], name='activation-function')
+            hidden = tf.tanh(tf.matmul(self.x, W['input-hidden']) + b['input-hidden'], name='activation-function')
             self.probs = tf.matmul(hidden, W['hidden-output']) + b['hidden-output']
             tf.summary.histogram('predicted_values', self.probs)
             self.y = tf.nn.softmax(self.probs)
