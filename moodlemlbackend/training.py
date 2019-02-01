@@ -6,10 +6,10 @@ import json
 import time
 
 from moodlemlbackend.processor import estimator
-from moodlemlbackend.processor import binary
+
 
 def training():
-    """Delegates training to train_dataset."""
+    """Trains a ML classifier."""
 
     # Missing arguments.
     if len(sys.argv) < 4:
@@ -28,10 +28,7 @@ def training():
     modelid = sys.argv[1]
     directory = sys.argv[2]
 
-    # Sklearn binary classifier - logistic regression.
-    #binary_classifier = binary.Sklearn(modelid, directory)
-    # TensorFlow binary classifier - NN.
-    binary_classifier = binary.TensorFlow(modelid, directory)
+    binary_classifier = estimator.Binary(modelid, directory)
 
     result = binary_classifier.train_dataset(sys.argv[3])
 

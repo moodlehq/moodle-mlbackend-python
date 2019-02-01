@@ -6,11 +6,10 @@ import json
 import time
 
 from moodlemlbackend.processor import estimator
-from moodlemlbackend.processor import binary
+
 
 def prediction():
-    """Delegates prediction to predict_dataset."""
-
+    """Returns predictions for a given dataset."""
 
     # Missing arguments.
     if len(sys.argv) < 4:
@@ -29,10 +28,8 @@ def prediction():
     modelid = sys.argv[1]
     directory = sys.argv[2]
 
-    # Sklearn binary classifier - logistic regression.
-    #binary_classifier = binary.Sklearn(modelid, directory)
     # TensorFlow binary classifier - NN.
-    binary_classifier = binary.TensorFlow(modelid, directory)
+    binary_classifier = estimator.Binary(modelid, directory)
 
     result = binary_classifier.predict_dataset(sys.argv[3])
 
