@@ -80,10 +80,14 @@ class Estimator(object):
         """Returns the run id"""
         return self.runid
 
-    def load_classifier(self):
+    def load_classifier(self, model_dir=False):
         """Loads a previously stored classifier"""
+
+        if model_dir is False:
+            model_dir = self.persistencedir
+
         classifier_filepath = os.path.join(
-            self.persistencedir, PERSIST_FILENAME)
+            model_dir, PERSIST_FILENAME)
         return joblib.load(classifier_filepath)
 
     def store_classifier(self, trained_classifier):
@@ -267,15 +271,19 @@ class Binary(Estimator):
 
         self.store_classifier(classifier)
 
-    def load_classifier(self):
+    def load_classifier(self, model_dir=False):
         """Loads a previously trained classifier and restores its state"""
 
-        classifier = super(Binary, self).load_classifier()
+        if model_dir is False:
+            model_dir = self.persistencedir
+
+        classifier = super(Binary, self).load_classifier(model_dir)
+
         classifier.set_tensor_logdir(self.get_tensor_logdir())
 
         # Now restore the graph state.
         saver = tf.train.Saver()
-        path = os.path.join(self.persistencedir, 'model.ckpt')
+        path = os.path.join(model_dir, 'model.ckpt')
         saver.restore(classifier.get_session(), path)
         return classifier
 
@@ -360,7 +368,8 @@ class Binary(Estimator):
         return result
 
     def evaluate_dataset(self, filepath, min_score=0.6,
-                         accepted_deviation=0.02, n_test_runs=100):
+                         accepted_deviation=0.02, n_test_runs=100,
+                         trained_model_dir=False):
         """Evaluate the model using the provided dataset"""
 
         [self.X, self.y] = self.get_labelled_samples(filepath)
@@ -387,16 +396,25 @@ class Binary(Estimator):
         # ROC curve.
         self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
 
-        for _ in range(0, n_test_runs):
+        if trained_model_dir is not False:
+            # Load the trained model in the provided path and evaluate it.
+            trained_model_dir = os.path.join(trained_model_dir, 'classifier')
+            classifier = self.load_classifier(trained_model_dir)
+            self.rate_prediction(classifier, self.X, self.y)
 
-            # Split samples into training set and test set (80% - 20%)
-            X_train, X_test, y_train, y_test = train_test_split(self.X,
-                                                                self.y,
-                                                                test_size=0.2)
+        else:
+            # Evaluate the model by training the ML algorithm multiple times.
 
-            classifier = self.train(X_train, y_train)
+            for _ in range(0, n_test_runs):
 
-            self.rate_prediction(classifier, X_test, y_test)
+                # Split samples into training set and test set (80% - 20%)
+                X_train, X_test, y_train, y_test = train_test_split(self.X,
+                                                                    self.y,
+                                                                    test_size=0.2)
+
+                classifier = self.train(X_train, y_train)
+
+                self.rate_prediction(classifier, X_test, y_test)
 
         # Store the roc curve.
         logging.info("Figure stored in " + self.roc_curve_plot.store())
@@ -408,6 +426,7 @@ class Binary(Estimator):
         result['runid'] = int(self.get_runid())
 
         logging.info("Accuracy: %.2f%%", result['accuracy'] * 100)
+        logging.info("AUC: %.2f%%", result['auc'])
         logging.info("Precision (predicted elements that are real): %.2f%%",
                      result['precision'] * 100)
         logging.info("Recall (real elements that are predicted): %.2f%%",

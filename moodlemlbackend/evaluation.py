@@ -33,8 +33,16 @@ def evaluation():
 
     binary_classifier = estimator.Binary(modelid, directory)
 
-    result = binary_classifier.evaluate_dataset(sys.argv[3], float(sys.argv[4]),
-                                                float(sys.argv[5]), int(sys.argv[6]))
+    if len(sys.argv) > 7:
+        trained_model_dir = sys.argv[7]
+    else:
+        trained_model_dir = False
+
+    result = binary_classifier.evaluate_dataset(sys.argv[3],
+                                                float(sys.argv[4]),
+                                                float(sys.argv[5]),
+                                                int(sys.argv[6]),
+                                                trained_model_dir)
 
     print(json.dumps(result))
     sys.exit(result['status'])
