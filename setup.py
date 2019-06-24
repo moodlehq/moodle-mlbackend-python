@@ -37,10 +37,10 @@ setup(
         'Intended Audience :: Education',
         'Topic :: Education',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
     ],
 
     keywords='moodle machine learning numpy scikit-learn tensorflow',
@@ -50,9 +50,10 @@ setup(
         'moodlemlbackend': ['VERSION']
     },
     install_requires=[
-        'matplotlib>=1.5.0,<1.6',
+        'matplotlib>=3.0,<3.1',
         'numpy>=1.16.0,<1.17',
-        'scikit-learn>=0.20,<0.21',
+        'scikit-learn>=0.21,<0.22',
+        'joblib>=0.13.0,<0.14',
         'tensorflow>=1.14.0,<1.15',
     ],
 )
