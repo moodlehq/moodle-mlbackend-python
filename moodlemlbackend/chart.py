@@ -3,10 +3,11 @@
 import os
 
 import numpy as np
-from sklearn.learning_curve import learning_curve
+from sklearn.model_selection import learning_curve
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+
 
 class LearningCurve(object):
     """scikit-learn Learning curve class"""
@@ -26,7 +27,8 @@ class LearningCurve(object):
         plt.xlabel("Training samples")
         plt.ylabel("Error")
 
-        train_sizes, train_scores, test_scores = learning_curve(self.classifier, X, y[:, 0])
+        train_sizes, train_scores, test_scores = learning_curve(
+            self.classifier, X, y[:, 0])
 
         train_error_mean = 1 - np.mean(train_scores, axis=1)
         train_scores_std = np.std(train_scores, axis=1)
