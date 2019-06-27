@@ -161,11 +161,13 @@ class Estimator(object):
             for row in file_iterator:
                 row_count += 1
                 if row_count == 1:
-                    data_header = [x for x in csv.reader(row, delimiter=',', quotechar='"')][0]
+                    data_header = [x for x in csv.reader(
+                        row, delimiter=',', quotechar='"')][0]
                     classes_index = data_header.index("targetclasses")
                     features_index = data_header.index("nfeatures")
                 if row_count == 2:
-                    info_row = [x for x in csv.reader(row, delimiter=',', quotechar='"')][0]
+                    info_row = [x for x in csv.reader(
+                        row, delimiter=',', quotechar='"')][0]
                     target_classes = json.loads(info_row[classes_index])
                     return {
                         "n_classes": len(target_classes),
@@ -222,7 +224,6 @@ class Classifier(Estimator):
             if os.makedirs(self.tensor_logdir) is False:
                 raise OSError('Directory ' + self.tensor_logdir +
                               ' can not be created.')
-
 
     def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
@@ -357,6 +358,10 @@ class Classifier(Estimator):
                 X_train, X_test, y_train, y_test = train_test_split(self.X,
                                                                     self.y,
                                                                     test_size=0.2)
+                if len(np.unique(y_train)) < self.n_classes:
+                    # We need the input data to match the expected size of the
+                    # tensor.
+                    continue
 
                 classifier = self.train(X_train, y_train)
 
@@ -375,7 +380,8 @@ class Classifier(Estimator):
 
         if self.is_binary:
             logging.info("AUC: %.2f%%", result['auc'])
-            logging.info("AUC standard deviation: %.4f", result['auc_deviation'])
+            logging.info("AUC standard deviation: %.4f",
+                         result['auc_deviation'])
         logging.info("Accuracy: %.2f%%", result['accuracy'] * 100)
         logging.info("Precision (predicted elements that are real): %.2f%%",
                      result['precision'] * 100)
@@ -490,12 +496,19 @@ class Classifier(Estimator):
         avg_precision = np.mean(self.precisions)
         avg_recall = np.mean(self.recalls)
         avg_mcc = np.mean(self.mccs)
+        if len(self.aucs) > 0:
+            avg_aucs = np.mean(self.aucs)
+        else:
+            avg_aucs = 0
 
         # MCC goes from -1 to 1 we need to transform it to a value between
         # 0 and 1 to compare it with the minimum score provided.
         score = (avg_mcc + 1) / 2
 
-        acc_deviation = np.std(self.mccs)
+        if len(self.mccs) > 0:
+            acc_deviation = np.std(self.mccs)
+        else:
+            acc_deviation = 1
         result = dict()
         if self.is_binary:
             result['auc'] = np.mean(self.aucs)

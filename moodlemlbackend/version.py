@@ -2,6 +2,7 @@
 
 import os
 
+
 def print_version():
     """Prints moodlemlbackend package version"""
 
