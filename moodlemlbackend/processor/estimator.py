@@ -1,7 +1,5 @@
 """Abstract estimator module, will contain just 1 class."""
 
-from __future__ import division
-
 import math
 import logging
 import time

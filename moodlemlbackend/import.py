@@ -1,6 +1,5 @@
 """Import module"""
 
-from __future__ import print_function
 import sys
 import json
 import time

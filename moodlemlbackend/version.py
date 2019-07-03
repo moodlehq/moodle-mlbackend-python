@@ -1,6 +1,5 @@
 """Utility module to print the package version"""
 
-from __future__ import print_function
 import os
 
 def print_version():

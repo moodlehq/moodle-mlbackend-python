@@ -1,6 +1,5 @@
 """Export module"""
 
-from __future__ import print_function
 import sys
 
 from moodlemlbackend.processor import estimator
