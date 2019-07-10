@@ -83,7 +83,6 @@ class TF(object):
 
     def build_graph(self, initial_weights=False):
         """Builds the computational graph without feeding any data in"""
-        print(type(initial_weights))
         # Placeholders for input values.
         with tf.name_scope('inputs'):
             self.x = tf.placeholder(
@@ -180,6 +179,10 @@ class TF(object):
     def get_n_features(self):
         """Return the number of features"""
         return self.n_features
+
+    def get_n_classes(self):
+        """Return the number of features"""
+        return self.n_classes
 
     def fit(self, X, y):
         """Fits provided data into the session"""

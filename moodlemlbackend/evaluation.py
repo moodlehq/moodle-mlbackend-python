@@ -29,15 +29,16 @@ def evaluation():
 
     modelid = sys.argv[1]
     directory = sys.argv[2]
+    dataset = sys.argv[3]
 
-    binary_classifier = estimator.Binary(modelid, directory)
+    classifier = estimator.Classifier(modelid, directory, dataset)
 
     if len(sys.argv) > 7:
         trained_model_dir = sys.argv[7]
     else:
         trained_model_dir = False
 
-    result = binary_classifier.evaluate_dataset(sys.argv[3],
+    result = classifier.evaluate_dataset(dataset,
                                                 float(sys.argv[4]),
                                                 float(sys.argv[5]),
                                                 int(sys.argv[6]),

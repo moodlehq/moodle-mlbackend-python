@@ -1,4 +1,5 @@
 """Abstract estimator module, will contain just 1 class."""
+import csv
 
 import math
 import logging
@@ -19,6 +20,7 @@ import joblib
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import confusion_matrix
 from sklearn.utils import shuffle
 import tensorflow as tf
 
@@ -152,6 +154,26 @@ class Estimator(object):
         return [sampleids, x]
 
     @staticmethod
+    def get_metadata(filepath):
+        with open(filepath) as datafile:
+            file_iterator = csv.reader(datafile, delimiter='\n', quotechar='"')
+            row_count = 0
+            for row in file_iterator:
+                row_count += 1
+                if row_count == 1:
+                    data_header = [x for x in csv.reader(row, delimiter=',', quotechar='"')][0]
+                    classes_index = data_header.index("targetclasses")
+                    features_index = data_header.index("nfeatures")
+                if row_count == 2:
+                    info_row = [x for x in csv.reader(row, delimiter=',', quotechar='"')][0]
+                    target_classes = json.loads(info_row[classes_index])
+                    return {
+                        "n_classes": len(target_classes),
+                        "classes": target_classes,
+                        "n_features": int(info_row[features_index])
+                    }
+
+    @staticmethod
     def check_classes_balance(counts):
         """Checks that the dataset contains enough samples of each class"""
         for item1 in counts:
@@ -176,20 +198,24 @@ class Estimator(object):
         self.accuracies = []
         self.precisions = []
         self.recalls = []
-        self.phis = []
+        self.mccs = []
 
 
-class Binary(Estimator):
-    """Binary classifier"""
+class Classifier(Estimator):
+    """General classifier"""
 
-    def __init__(self, modelid, directory):
-
-        super(Binary, self).__init__(modelid, directory)
+    def __init__(self, modelid, directory, dataset=None):
+        super(Classifier, self).__init__(modelid, directory)
 
         self.aucs = []
-        self.classes = [1, 0]
+        self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
 
-        self.roc_curve_plot = None
+        if dataset:
+            meta = self.get_metadata(dataset)
+            self.n_features = meta['n_features']
+            self.classes = meta['classes']
+            self.n_classes = meta['n_classes']
+            self.is_binary = self.n_classes == 2
 
         self.tensor_logdir = self.get_tensor_logdir()
         if os.path.isdir(self.tensor_logdir) is False:
@@ -197,101 +223,20 @@ class Binary(Estimator):
                 raise OSError('Directory ' + self.tensor_logdir +
                               ' can not be created.')
 
-    def get_classifier(self, X, y, initial_weights=False,
-                       force_n_features=False):
+
+    def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
 
         n_epoch = 50
         batch_size = 1000
         starter_learning_rate = 0.5
 
-        if force_n_features is not False:
-            n_features = force_n_features
-        else:
-            _, n_features = X.shape
-
-        n_classes = 2
+        n_classes = self.n_classes
+        n_features = self.n_features
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          starter_learning_rate, self.get_tensor_logdir(),
                          initial_weights=initial_weights)
-
-    def get_tensor_logdir(self):
-        """Returns the directory to store tensorflow framework logs"""
-        return os.path.join(self.logsdir, 'tensor')
-
-    def store_classifier(self, trained_classifier):
-        """Stores the classifier and saves a checkpoint of the tensors state"""
-
-        # Store the graph state.
-        saver = tf.train.Saver()
-        sess = trained_classifier.get_session()
-
-        path = os.path.join(self.persistencedir, 'model.ckpt')
-        saver.save(sess, path)
-
-        # Also save it to the logs dir to see the embeddings.
-        path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
-        saver.save(sess, path)
-
-        # Save the class data.
-        super(Binary, self).store_classifier(trained_classifier)
-
-    def export_classifier(self, exporttmpdir):
-        if self.classifier_exists():
-            classifier = self.load_classifier()
-        else:
-            return False
-
-        export_vars = {}
-
-        # Get all the variables in in initialise-vars scope.
-        sess = classifier.get_session()
-        for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                     scope='initialise-vars'):
-            # Converting to list as numpy arrays can't be serialised.
-            export_vars[var.op.name] = var.eval(sess).tolist()
-
-        # Append the number of features.
-        export_vars['n_features'] = classifier.get_n_features()
-
-        vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
-        with open(vars_file_path, 'w') as vars_file:
-            json.dump(export_vars, vars_file)
-
-        return exporttmpdir
-
-    def import_classifier(self, importdir):
-
-        model_vars_filepath = os.path.join(importdir,
-                                           EXPORT_MODEL_FILENAME)
-
-        with open(model_vars_filepath) as vars_file:
-            import_vars = json.load(vars_file)
-
-        n_features = import_vars['n_features']
-
-        classifier = self.get_classifier(False, False,
-                                         initial_weights=import_vars,
-                                         force_n_features=n_features)
-
-        self.store_classifier(classifier)
-
-    def load_classifier(self, model_dir=False):
-        """Loads a previously trained classifier and restores its state"""
-
-        if model_dir is False:
-            model_dir = self.persistencedir
-
-        classifier = super(Binary, self).load_classifier(model_dir)
-
-        classifier.set_tensor_logdir(self.get_tensor_logdir())
-
-        # Now restore the graph state.
-        saver = tf.train.Saver()
-        path = os.path.join(model_dir, 'model.ckpt')
-        saver.restore(classifier.get_session(), path)
-        return classifier
 
     def train(self, X_train, y_train, classifier=False):
         """Train the classifier with the provided training data"""
@@ -306,19 +251,11 @@ class Binary(Estimator):
         # Returns the trained classifier.
         return classifier
 
-    def classifier_exists(self):
-        """Checks if there is a previously stored classifier"""
-
-        classifier_dir = os.path.join(self.persistencedir,
-                                      PERSIST_FILENAME)
-        return os.path.isfile(classifier_dir)
-
     def train_dataset(self, filepath):
         """Train the model with the provided dataset"""
-
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
-        if len(np.unique(self.y)) < 2:
+        if len(np.unique(self.y)) < self.n_classes:
             # We need samples belonging to all different classes.
             result = dict()
             result['status'] = NOT_ENOUGH_DATA
@@ -381,26 +318,31 @@ class Binary(Estimator):
         [self.X, self.y] = self.get_labelled_samples(filepath)
 
         # Classes balance check.
-        counts = []
         y_array = np.array(self.y.T[0])
-        counts.append(np.count_nonzero(y_array))
-        counts.append(len(y_array) - np.count_nonzero(y_array))
+        unique_elements, counts = np.unique(y_array, return_counts=True)
+
+        if not np.array_equal(np.sort(self.classes), np.sort(unique_elements)):
+            result = dict()
+            result['runid'] = int(self.get_runid())
+            result['status'] = GENERAL_ERROR
+            result['info'] = ['The labels from the provided dataset do not ' +
+                              'match the targetclasses from the header']
+            return result
+
         logging.info('Number of samples by y value: %s', str(counts))
         balanced_classes = self.check_classes_balance(counts)
         if balanced_classes is not False:
             logging.warning(balanced_classes)
 
         # Check that we have samples belonging to all classes.
-        if counts[0] == 0 or counts[1] == 0:
-            result = dict()
-            result['runid'] = int(self.get_runid())
-            result['status'] = GENERAL_ERROR
-            result['info'] = ['The provided dataset does not contain ' +
-                              'samples for each class']
-            return result
-
-        # ROC curve.
-        self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
+        for i in range(len(counts)):
+            if counts[i] == 0:
+                result = dict()
+                result['runid'] = int(self.get_runid())
+                result['status'] = GENERAL_ERROR
+                result['info'] = ['The provided dataset does not contain ' +
+                                  'samples for each class']
+                return result
 
         if trained_model_dir is not False:
             # Load the trained model in the provided path and evaluate it.
@@ -410,9 +352,7 @@ class Binary(Estimator):
 
         else:
             # Evaluate the model by training the ML algorithm multiple times.
-
             for _ in range(0, n_test_runs):
-
                 # Split samples into training set and test set (80% - 20%)
                 X_train, X_test, y_train, y_test = train_test_split(self.X,
                                                                     self.y,
@@ -428,17 +368,21 @@ class Binary(Estimator):
         # Return results.
         result = self.get_evaluation_results(min_score, accepted_deviation)
 
+        print("score: " + str(result['score']))
+
         # Add the run id to identify it in the caller.
         result['runid'] = int(self.get_runid())
 
+        if self.is_binary:
+            logging.info("AUC: %.2f%%", result['auc'])
+            logging.info("AUC standard deviation: %.4f", result['auc_deviation'])
         logging.info("Accuracy: %.2f%%", result['accuracy'] * 100)
-        logging.info("AUC: %.2f%%", result['auc'])
         logging.info("Precision (predicted elements that are real): %.2f%%",
                      result['precision'] * 100)
         logging.info("Recall (real elements that are predicted): %.2f%%",
                      result['recall'] * 100)
         logging.info("Score: %.2f%%", result['score'] * 100)
-        logging.info("AUC standard desviation: %.4f", result['auc_deviation'])
+        logging.info("Score standard deviation: %.4f", result['acc_deviation'])
 
         return result
 
@@ -452,36 +396,59 @@ class Binary(Estimator):
         # Transform it to an array.
         y_test = y_test.T[0]
 
+        if self.is_binary:
+            # ROC curve calculations.
+            fpr, tpr, _ = roc_curve(y_test, y_score)
+
+            # When the amount of samples is small we can randomly end up
+            # having just one class instead of examples of each, which
+            # triggers a "UndefinedMetricWarning: No negative samples in
+            # y_true, false positive value should be meaningless"
+            # and returning NaN.
+            if math.isnan(fpr[0]) or math.isnan(tpr[0]):
+                return
+
+            self.aucs.append(auc(fpr, tpr))
+
+            # Draw it.
+            self.roc_curve_plot.add(fpr, tpr, 'Positives')
+
         # Calculate accuracy, sensitivity and specificity.
-        [acc, prec, rec, phi] = self.calculate_metrics(y_test == 1,
-                                                       y_pred == 1)
+        mcc = self.get_mcc(y_test, y_pred)
+
+        [acc, prec, rec] = self.calculate_metrics(y_test == 1, y_pred == 1)
+
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
-        self.phis.append(phi)
+        self.mccs.append(mcc)
 
-        # ROC curve calculations.
-        fpr, tpr, _ = roc_curve(y_test, y_score)
+    @staticmethod
+    def get_mcc(y_true, y_pred):
+        C = confusion_matrix(y_true, y_pred)
+        t_sum = C.sum(axis=1, dtype=np.float64)
+        p_sum = C.sum(axis=0, dtype=np.float64)
+        n_correct = np.trace(C, dtype=np.float64)
+        n_samples = p_sum.sum()
+        cov_ytyp = n_correct * n_samples - np.dot(t_sum, p_sum)
+        cov_ypyp = n_samples ** 2 - np.dot(p_sum, p_sum)
+        cov_ytyt = n_samples ** 2 - np.dot(t_sum, t_sum)
+        denominator = np.sqrt(cov_ytyt * cov_ypyp)
+        if denominator != 0:
+            mcc = cov_ytyp / np.sqrt(cov_ytyt * cov_ypyp)
+        else:
+            return 0.
 
-        # When the amount of samples is small we can randomly end up
-        # having just one class instead of examples of each, which
-        # triggers a "UndefinedMetricWarning: No negative samples in
-        # y_true, false positive value should be meaningless"
-        # and returning NaN.
-        if math.isnan(fpr[0]) or math.isnan(tpr[0]):
-            return
-
-        self.aucs.append(auc(fpr, tpr))
-
-        # Draw it.
-        self.roc_curve_plot.add(fpr, tpr, 'Positives')
+        if np.isnan(mcc):
+            return 0.
+        else:
+            return mcc
 
     @staticmethod
     def get_score(classifier, X_test, y_test):
         """Returns the trained classifier score"""
 
         probs = classifier.predict_proba(X_test)
-
         n_samples = len(y_test)
 
         # Calculated probabilities of the correct response.
@@ -514,22 +481,7 @@ class Binary(Estimator):
         else:
             recall = 0
 
-        denominator = (tp + fp) * (tp + fn) * (tn + fp) * (tn + fn)
-        if denominator != 0:
-            phi = ((tp * tn) - (fp * fn)) / math.sqrt(denominator)
-        else:
-            phi = 0
-
-        return [accuracy, precision, recall, phi]
-
-    def reset_metrics(self):
-
-        super(Binary, self).reset_metrics()
-
-        self.aucs = []
-
-        # ROC curve.
-        self.roc_curve_plot = chart.RocCurve(self.logsdir, 2)
+        return [accuracy, precision, recall]
 
     def get_evaluation_results(self, min_score, accepted_deviation):
         """Returns the evaluation results after all iterations"""
@@ -537,19 +489,21 @@ class Binary(Estimator):
         avg_accuracy = np.mean(self.accuracies)
         avg_precision = np.mean(self.precisions)
         avg_recall = np.mean(self.recalls)
-        avg_aucs = np.mean(self.aucs)
-        avg_phi = np.mean(self.phis)
+        avg_mcc = np.mean(self.mccs)
 
-        # Phi goes from -1 to 1 we need to transform it to a value between
+        # MCC goes from -1 to 1 we need to transform it to a value between
         # 0 and 1 to compare it with the minimum score provided.
-        score = (avg_phi + 1) / 2
+        score = (avg_mcc + 1) / 2
 
+        acc_deviation = np.std(self.mccs)
         result = dict()
-        result['auc'] = avg_aucs
+        if self.is_binary:
+            result['auc'] = np.mean(self.aucs)
+            result['auc_deviation'] = np.std(self.aucs)
         result['accuracy'] = avg_accuracy
         result['precision'] = avg_precision
         result['recall'] = avg_recall
-        result['auc_deviation'] = np.std(self.aucs)
+        result['acc_deviation'] = acc_deviation
         result['score'] = score
         result['min_score'] = min_score
         result['accepted_deviation'] = accepted_deviation
@@ -560,12 +514,11 @@ class Binary(Estimator):
 
         # If deviation is too high we may need more records to report if
         # this model is reliable or not.
-        auc_deviation = np.std(self.aucs)
-        if auc_deviation > accepted_deviation:
+        if acc_deviation > accepted_deviation:
             result['info'].append('The evaluation results varied too much, ' +
-                                  'we need more samples to check if this ' +
+                                  'we might need more samples to check if this ' +
                                   'model is valid. Model deviation = ' +
-                                  str(auc_deviation) +
+                                  str(acc_deviation) +
                                   ', accepted deviation = ' +
                                   str(accepted_deviation))
             result['status'] = NOT_ENOUGH_DATA
@@ -577,7 +530,7 @@ class Binary(Estimator):
                                   str(min_score))
             result['status'] = LOW_SCORE
 
-        if auc_deviation > accepted_deviation and score < min_score:
+        if acc_deviation > accepted_deviation and score < min_score:
             result['status'] = LOW_SCORE + NOT_ENOUGH_DATA
 
         result['info'].append('Launch TensorBoard from command line by ' +
@@ -585,3 +538,91 @@ class Binary(Estimator):
                               self.get_tensor_logdir() + '\'')
 
         return result
+
+    def store_classifier(self, trained_classifier):
+        """Stores the classifier and saves a checkpoint of the tensors state"""
+
+        # Store the graph state.
+        saver = tf.train.Saver()
+        sess = trained_classifier.get_session()
+
+        path = os.path.join(self.persistencedir, 'model.ckpt')
+        saver.save(sess, path)
+
+        # Also save it to the logs dir to see the embeddings.
+        path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
+        saver.save(sess, path)
+
+        # Save the class data.
+        super(Classifier, self).store_classifier(trained_classifier)
+
+    def load_classifier(self, model_dir=False):
+        """Loads a previously trained classifier and restores its state"""
+
+        if model_dir is False:
+            model_dir = self.persistencedir
+
+        classifier = super(Classifier, self).load_classifier(model_dir)
+
+        classifier.set_tensor_logdir(self.get_tensor_logdir())
+
+        # Now restore the graph state.
+        saver = tf.train.Saver()
+        path = os.path.join(model_dir, 'model.ckpt')
+        saver.restore(classifier.get_session(), path)
+        return classifier
+
+    def export_classifier(self, exporttmpdir):
+        if self.classifier_exists():
+            classifier = self.load_classifier()
+        else:
+            return False
+
+        export_vars = {}
+
+        # Get all the variables in in initialise-vars scope.
+        sess = classifier.get_session()
+        for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
+                                     scope='initialise-vars'):
+            # Converting to list as numpy arrays can't be serialised.
+            export_vars[var.op.name] = var.eval(sess).tolist()
+
+        # Append the number of features.
+        export_vars['n_features'] = classifier.get_n_features()
+        export_vars['n_classes'] = classifier.get_n_classes()
+
+        vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
+        with open(vars_file_path, 'w') as vars_file:
+            json.dump(export_vars, vars_file)
+
+        return exporttmpdir
+
+    def import_classifier(self, importdir):
+
+        model_vars_filepath = os.path.join(importdir,
+                                           EXPORT_MODEL_FILENAME)
+
+        with open(model_vars_filepath) as vars_file:
+            import_vars = json.load(vars_file)
+
+        self.n_features = import_vars['n_features']
+        if "n_classes" in import_vars:
+            self.n_classes = import_vars['n_classes']
+        else:
+            self.n_classes = 2
+
+        classifier = self.get_classifier(False, False,
+                                         initial_weights=import_vars)
+
+        self.store_classifier(classifier)
+
+    def classifier_exists(self):
+        """Checks if there is a previously stored classifier"""
+
+        classifier_dir = os.path.join(self.persistencedir,
+                                      PERSIST_FILENAME)
+        return os.path.isfile(classifier_dir)
+
+    def get_tensor_logdir(self):
+        """Returns the directory to store tensorflow framework logs"""
+        return os.path.join(self.logsdir, 'tensor')

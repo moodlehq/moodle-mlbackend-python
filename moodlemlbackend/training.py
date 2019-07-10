@@ -26,10 +26,11 @@ def training():
 
     modelid = sys.argv[1]
     directory = sys.argv[2]
+    dataset = sys.argv[3]
 
-    binary_classifier = estimator.Binary(modelid, directory)
+    classifier = estimator.Classifier(modelid, directory, dataset)
 
-    result = binary_classifier.train_dataset(sys.argv[3])
+    result = classifier.train_dataset(dataset)
 
     print(json.dumps(result))
     sys.exit(result['status'])

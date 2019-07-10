@@ -11,8 +11,8 @@ def export_classifier():
     modelid = sys.argv[1]
     directory = sys.argv[2]
 
-    binary_classifier = estimator.Binary(modelid, directory)
-    exportdir = binary_classifier.export_classifier(sys.argv[3])
+    classifier = estimator.Classifier(modelid, directory)
+    exportdir = classifier.export_classifier(sys.argv[3])
     if exportdir:
         print(exportdir)
         sys.exit(0)
