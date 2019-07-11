@@ -1,113 +1,27 @@
 import os
-import re
 import json
 import tempfile
 import zipfile
-import shutil
 
-from flask import Flask, request, send_file, Response
-from werkzeug.utils import secure_filename
+from flask import Flask, send_file, Response
 
 from moodlemlbackend.processor import estimator
 
+from moodlemlbackend.webapp.localfs import LocalFS, LocalFS_setup_base_dir
+from moodlemlbackend.webapp.s3 import S3, S3_setup_base_dir
+from moodlemlbackend.webapp.access import check_access
+from moodlemlbackend.webapp.util import get_request_value, get_file_path
+from moodlemlbackend.webapp.util import zipdir
+
 app = Flask(__name__)
 
-
-def get_request_value(key, pattern=False, exception=True):
-
-    if pattern is False:
-        pattern = '[^A-Za-z0-9_\-$]'
-
-    value = request.values.get(key)
-    if value is None:
-
-        if exception is True:
-            raise Exception('The requested key ' + key + ' is not available.')
-        return False
-
-    return re.sub(pattern, '', value)
-
-
-def get_model_dir(hashkey=False):
-
-    basedir = os.environ["MOODLE_MLBACKEND_PYTHON_DIR"]
-
-    if os.path.exists(basedir) is False:
-        raise IOError(
-            'The base dir does not exist. ' +
-            'Set env MOODLE_MLBACKEND_PYTHON_DIR to an existing dir')
-
-    os.access(basedir, os.W_OK)
-
-    uniquemodelid = get_request_value('uniqueid')
-
-    # The dir in the server is namespaced by uniquemodelid and the
-    # dirhash (if present) which determines where the results should be stored.
-    modeldir = os.path.join(basedir, uniquemodelid)
-
-    if hashkey is not False:
-        dirhash = get_request_value(hashkey)
-        modeldir = os.path.join(modeldir, dirhash)
-
-    return modeldir
-
-
-def check_access():
-
-    envvarname = "MOODLE_MLBACKEND_PYTHON_USERS"
-    if envvarname not in os.environ:
-        raise Exception(
-            envvarname + ' environment var is not set in the server.')
-
-    if re.match(os.environ[envvarname], '[^A-Za-z0-9_\-,$]'):
-        raise Exception(
-            'The value of ' + envvarname + ' environment var does not ' +
-            ' adhere to [^A-Za-z0-9_\-,$]')
-
-    users = os.environ[envvarname].split(',')
-
-    if (request.authorization is None or
-            request.authorization.username is None or
-            request.authorization.password is None):
-        return 'No user and/or password included in the request.'
-
-    for user in users:
-        userdata = user.split(':')
-        if len(userdata) != 2:
-            raise Exception('Incorrect format for ' +
-                            envvarname + ' environment var. It should ' +
-                            'contain a comma-separated list of ' +
-                            'username:password.')
-
-        if (userdata[0] == request.authorization.username and
-                userdata[1] == request.authorization.password):
-            return True
-
-    return 'Incorrect user and/or password provided by Moodle.'
-
-
-def get_file_path(filekey):
-
-    file = request.files[filekey]
-
-    # We can use a temp directory for the input files.
-    tempdir = tempfile.mkdtemp()
-    filepath = os.path.join(tempdir, secure_filename(file.filename))
-    file.save(filepath)
-
-    return filepath
-
-
-def zipdir(dirpath, zipfilepath):
-
-    ziph = zipfile.ZipFile(zipfilepath, 'w', zipfile.ZIP_DEFLATED)
-
-    for root, dirs, files in os.walk(dirpath):
-        for file in files:
-            abspath = os.path.join(root, file)
-            ziph.write(abspath, os.path.relpath(abspath, root))
-    ziph.close()
-    return ziph
+# S3 or the local file system depending on the presence of this ENV var.
+if "MOODLE_MLBACKEND_PYTHON_S3_BUCKET_NAME" in os.environ:
+    storage = S3()
+    setup_base_dir = S3_setup_base_dir
+else:
+    storage = LocalFS()
+    setup_base_dir = LocalFS_setup_base_dir
 
 
 @app.route('/version', methods=['GET'])
@@ -118,56 +32,50 @@ def version():
 
 
 @app.route('/training', methods=['POST'])
+@check_access
+@setup_base_dir(storage, True, True)
 def training():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
-
     uniquemodelid = get_request_value('uniqueid')
-    outputdir = get_model_dir('outputdirhash')
+    modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path('dataset')
+    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
 
-    classifier = estimator.Classifier(uniquemodelid, outputdir)
+    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
     result = classifier.train_dataset(datasetpath)
 
     return json.dumps(result)
 
 
 @app.route('/prediction', methods=['POST'])
+@check_access
+@setup_base_dir(storage, True, True)
 def prediction():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
-
     uniquemodelid = get_request_value('uniqueid')
-    outputdir = get_model_dir('outputdirhash')
+    modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path('dataset')
+    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
 
-    classifier = estimator.Classifier(uniquemodelid, outputdir)
+    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
     result = classifier.predict_dataset(datasetpath)
 
     return json.dumps(result)
 
 
 @app.route('/evaluation', methods=['POST'])
+@check_access
+@setup_base_dir(storage, False, False)
 def evaluation():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
-
     uniquemodelid = get_request_value('uniqueid')
-    outputdir = get_model_dir('outputdirhash')
+    modeldir = storage.get_model_dir('dirhash')
 
     minscore = get_request_value('minscore', pattern='[^0-9.$]')
     maxdeviation = get_request_value('maxdeviation', pattern='[^0-9.$]')
     niterations = get_request_value('niterations', pattern='[^0-9$]')
 
-    datasetpath = get_file_path('dataset')
+    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
 
     trainedmodeldirhash = get_request_value(
         'trainedmodeldirhash', exception=False)
@@ -175,96 +83,86 @@ def evaluation():
         # The trained model dir in the server is namespaced by uniquemodelid
         # and the trainedmodeldirhash which determines where should the results
         # be stored.
-        trainedmodeldir = get_model_dir('trainedmodeldirhash')
+        trainedmodeldir = storage.get_model_dir(
+            'trainedmodeldirhash', fetch_model=True)
     else:
         trainedmodeldir = False
 
-    classifier = estimator.Classifier(uniquemodelid, outputdir)
+    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
     result = classifier.evaluate_dataset(datasetpath,
-                                                float(minscore),
-                                                float(maxdeviation),
-                                                int(niterations),
-                                                trainedmodeldir)
+                                         float(minscore),
+                                         float(maxdeviation),
+                                         int(niterations),
+                                         trainedmodeldir)
 
     return json.dumps(result)
 
 
 @app.route('/evaluationlog', methods=['GET'])
+@check_access
+@setup_base_dir(storage, True, False)
 def evaluationlog():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
-
-    outputdir = get_model_dir('outputdirhash')
+    modeldir = storage.get_model_dir('dirhash')
     runid = get_request_value('runid', '[^0-9$]')
-    logsdir = os.path.join(outputdir, 'logs', runid)
+    logsdir = os.path.join(modeldir, 'logs', runid)
 
-    zipfile = tempfile.NamedTemporaryFile()
-    zipdir(logsdir, zipfile)
-    return send_file(zipfile.name, mimetype='application/zip')
+    zipf = tempfile.NamedTemporaryFile()
+    zipdir(logsdir, zipf)
+    return send_file(zipf.name, mimetype='application/zip')
 
 
 @app.route('/export', methods=['GET'])
+@check_access
+@setup_base_dir(storage, True, False)
 def export():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
-
     uniquemodelid = get_request_value('uniqueid')
-    modeldir = get_model_dir('modeldirhash')
+    modeldir = storage.get_model_dir('dirhash')
 
     # We can use a temp directory for the export data
     # as we don't need to keep it forever.
-    tempdir = tempfile.mkdtemp()
+    tempdir = tempfile.TemporaryDirectory()
 
     classifier = estimator.Classifier(uniquemodelid, modeldir)
-    exportdir = classifier.export_classifier(tempdir)
+    exportdir = classifier.export_classifier(tempdir.name)
     if exportdir is False:
         return Response('There is nothing to export.', 503)
 
-    zipfile = tempfile.NamedTemporaryFile()
-    zipdir(exportdir, zipfile)
-    return send_file(zipfile.name, mimetype='application/zip')
+    zipf = tempfile.NamedTemporaryFile()
+    zipdir(exportdir, zipf)
+
+    return send_file(zipf.name, mimetype='application/zip')
 
 
 @app.route('/import', methods=['POST'])
+@check_access
+@setup_base_dir(storage, False, True)
 def import_model():
 
-    access = check_access()
-    if access is not True:
-        return access, 401
+    uniquemodelid = get_request_value('uniqueid')
+    modeldir = storage.get_model_dir('dirhash')
 
-    uniquemodelid = get_request_value('uniqueid', '')
-    modeldir = get_model_dir('modeldirhash')
-
-    importzippath = get_file_path('importzip')
+    importzippath = get_file_path(storage.get_localbasedir(), 'importzip')
 
     with zipfile.ZipFile(importzippath, 'r') as zipobject:
-        importtempdir = tempfile.mkdtemp()
-        zipobject.extractall(importtempdir)
+        importtempdir = tempfile.TemporaryDirectory()
+        zipobject.extractall(importtempdir.name)
 
         classifier = estimator.Classifier(uniquemodelid, modeldir)
-        classifier.import_classifier(importtempdir)
+        classifier.import_classifier(importtempdir.name)
 
     return 'Ok', 200
 
 
 @app.route('/deletemodel', methods=['POST'])
+@check_access
+@setup_base_dir(storage, False, False)
 def deletemodel():
-
-    access = check_access()
-    if access is not True:
-        return access, 401
-
-    modeldir = get_model_dir()
-
-    if os.path.exists(modeldir):
-        # The directory may not exist.
-        shutil.rmtree(modeldir, False)
-
+    # All processing is delegated to delete_dir as it is file system dependant.
+    storage.delete_dir
     return 'Ok', 200
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')

@@ -83,6 +83,7 @@ class TF(object):
 
     def build_graph(self, initial_weights=False):
         """Builds the computational graph without feeding any data in"""
+
         # Placeholders for input values.
         with tf.name_scope('inputs'):
             self.x = tf.placeholder(

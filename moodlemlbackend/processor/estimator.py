@@ -552,7 +552,7 @@ class Classifier(Estimator):
         """Stores the classifier and saves a checkpoint of the tensors state"""
 
         # Store the graph state.
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(save_relative_paths=True)
         sess = trained_classifier.get_session()
 
         path = os.path.join(self.persistencedir, 'model.ckpt')
@@ -576,7 +576,7 @@ class Classifier(Estimator):
         classifier.set_tensor_logdir(self.get_tensor_logdir())
 
         # Now restore the graph state.
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(save_relative_paths=True)
         path = os.path.join(model_dir, 'model.ckpt')
         saver.restore(classifier.get_session(), path)
         return classifier
