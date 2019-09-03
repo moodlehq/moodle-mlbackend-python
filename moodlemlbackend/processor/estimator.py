@@ -1,7 +1,5 @@
 """Abstract estimator module, will contain just 1 class."""
 
-from __future__ import division
-
 import math
 import logging
 import time
@@ -17,16 +15,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 import absl.logging
 absl.logging._warn_preinit_stderr = 0
 
+import joblib
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
+from sklearn.utils import shuffle
 import tensorflow as tf
 
 from ..model import tensor
 from .. import chart
 
-from sklearn.utils import shuffle
-from sklearn.externals import joblib
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
