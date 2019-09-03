@@ -10,6 +10,8 @@ from sklearn import preprocessing
 import tensorflow as tf
 import numpy as np
 
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
 
 class TF(object):
     """Tensorflow classifier"""
@@ -139,7 +141,7 @@ class TF(object):
             self.y = tf.nn.softmax(self.probs)
             tf.summary.histogram('activations', self.y)
 
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(
+            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.probs, labels=self.y_))
             tf.summary.scalar("loss", loss)
 

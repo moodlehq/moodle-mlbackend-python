@@ -15,7 +15,7 @@ def training():
     if len(sys.argv) < 4:
         result = dict()
         result['runid'] = str(int(time.time()))
-        result['status'] = estimator.Classifier.GENERAL_ERROR
+        result['status'] = estimator.GENERAL_ERROR
         result['info'] = ['Missing arguments, you should set:\
     - The model unique identifier\
     - The directory to store all generated outputs\
