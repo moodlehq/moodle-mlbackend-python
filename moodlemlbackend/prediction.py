@@ -26,11 +26,12 @@ def prediction():
 
     modelid = sys.argv[1]
     directory = sys.argv[2]
+    dataset = sys.argv[3]
 
     # TensorFlow binary classifier - NN.
-    binary_classifier = estimator.Binary(modelid, directory)
+    classifier = estimator.Classifier(modelid, directory, dataset)
 
-    result = binary_classifier.predict_dataset(sys.argv[3])
+    result = classifier.predict_dataset(dataset)
 
     print(json.dumps(result))
     sys.exit(result['status'])
