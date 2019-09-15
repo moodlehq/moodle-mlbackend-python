@@ -200,7 +200,7 @@ class Estimator(object):
         self.accuracies = []
         self.precisions = []
         self.recalls = []
-        self.mccs = []
+        self.f1_scores = []
 
 
 class Classifier(Estimator):
@@ -388,7 +388,8 @@ class Classifier(Estimator):
         logging.info("Recall (real elements that are predicted): %.2f%%",
                      result['recall'] * 100)
         logging.info("Score: %.2f%%", result['score'] * 100)
-        logging.info("Score standard deviation: %.4f", result['acc_deviation'])
+        logging.info("Score standard deviation: %.4f",
+                     result['score_deviation'])
 
         return result
 
@@ -420,35 +421,12 @@ class Classifier(Estimator):
             self.roc_curve_plot.add(fpr, tpr, 'Positives')
 
         # Calculate accuracy, sensitivity and specificity.
-        mcc = self.get_mcc(y_test, y_pred)
-
-        [acc, prec, rec] = self.calculate_metrics(y_test == 1, y_pred == 1)
-
+        [acc, prec, rec, f1_score] = self.calculate_metrics(
+            y_test == 1, y_pred == 1)
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
-        self.mccs.append(mcc)
-
-    @staticmethod
-    def get_mcc(y_true, y_pred):
-        C = confusion_matrix(y_true, y_pred)
-        t_sum = C.sum(axis=1, dtype=np.float64)
-        p_sum = C.sum(axis=0, dtype=np.float64)
-        n_correct = np.trace(C, dtype=np.float64)
-        n_samples = p_sum.sum()
-        cov_ytyp = n_correct * n_samples - np.dot(t_sum, p_sum)
-        cov_ypyp = n_samples ** 2 - np.dot(p_sum, p_sum)
-        cov_ytyt = n_samples ** 2 - np.dot(t_sum, t_sum)
-        denominator = np.sqrt(cov_ytyt * cov_ypyp)
-        if denominator != 0:
-            mcc = cov_ytyp / np.sqrt(cov_ytyt * cov_ypyp)
-        else:
-            return 0.
-
-        if np.isnan(mcc):
-            return 0.
-        else:
-            return mcc
+        self.f1_scores.append(f1_score)
 
     @staticmethod
     def get_score(classifier, X_test, y_test):
@@ -487,7 +465,12 @@ class Classifier(Estimator):
         else:
             recall = 0
 
-        return [accuracy, precision, recall]
+        if precision + recall != 0:
+            f1_score = 2 * precision * recall / (precision + recall)
+        else:
+            f1_score = 0
+
+        return [accuracy, precision, recall, f1_score]
 
     def get_evaluation_results(self, min_score, accepted_deviation):
         """Returns the evaluation results after all iterations"""
@@ -495,28 +478,24 @@ class Classifier(Estimator):
         avg_accuracy = np.mean(self.accuracies)
         avg_precision = np.mean(self.precisions)
         avg_recall = np.mean(self.recalls)
-        avg_mcc = np.mean(self.mccs)
-        if len(self.aucs) > 0:
-            avg_aucs = np.mean(self.aucs)
-        else:
-            avg_aucs = 0
 
-        # MCC goes from -1 to 1 we need to transform it to a value between
-        # 0 and 1 to compare it with the minimum score provided.
-        score = (avg_mcc + 1) / 2
-
-        if len(self.mccs) > 0:
-            acc_deviation = np.std(self.mccs)
+        if len(self.f1_scores) > 0:
+            score = np.mean(self.f1_scores)
+            score_deviation = np.std(self.f1_scores)
         else:
-            acc_deviation = 1
+            score = 0
+            score_deviation = 1
+
         result = dict()
-        if self.is_binary:
+        if self.is_binary and len(self.aucs) > 0:
             result['auc'] = np.mean(self.aucs)
             result['auc_deviation'] = np.std(self.aucs)
+
         result['accuracy'] = avg_accuracy
         result['precision'] = avg_precision
         result['recall'] = avg_recall
-        result['acc_deviation'] = acc_deviation
+        result['f1_score'] = score
+        result['score_deviation'] = score_deviation
         result['score'] = score
         result['min_score'] = min_score
         result['accepted_deviation'] = accepted_deviation
@@ -527,11 +506,11 @@ class Classifier(Estimator):
 
         # If deviation is too high we may need more records to report if
         # this model is reliable or not.
-        if acc_deviation > accepted_deviation:
+        if score_deviation > accepted_deviation:
             result['info'].append('The evaluation results varied too much, ' +
                                   'we might need more samples to check if this ' +
                                   'model is valid. Model deviation = ' +
-                                  str(acc_deviation) +
+                                  str(score_deviation) +
                                   ', accepted deviation = ' +
                                   str(accepted_deviation))
             result['status'] = NOT_ENOUGH_DATA
@@ -543,7 +522,7 @@ class Classifier(Estimator):
                                   str(min_score))
             result['status'] = LOW_SCORE
 
-        if acc_deviation > accepted_deviation and score < min_score:
+        if score_deviation > accepted_deviation and score < min_score:
             result['status'] = LOW_SCORE + NOT_ENOUGH_DATA
 
         return result
