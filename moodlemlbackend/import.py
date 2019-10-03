@@ -18,6 +18,7 @@ def import_classifier():
 
     print('Ok')
     # An exception will be thrown before if it can be imported.
+    print('Ok')
     sys.exit(0)
 
 import_classifier()
