@@ -160,7 +160,7 @@ def import_model():
 @setup_base_dir(storage, False, False)
 def deletemodel():
     # All processing is delegated to delete_dir as it is file system dependant.
-    storage.delete_dir
+    storage.delete_dir()
     return 'Ok', 200
 
 

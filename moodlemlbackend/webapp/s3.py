@@ -71,15 +71,16 @@ class S3(object):
 
     def delete_dir(self):
 
-        s3 = boto3.client('s3')
+        s3 = boto3.resource('s3')
 
         bucketname = os.environ["MOODLE_MLBACKEND_PYTHON_S3_BUCKET_NAME"]
+        bucket = s3.Bucket(bucketname)
 
         # Objectkey will equal uniquemodelid so we delete all files matching
         # uniquemodelid/ namespace.
         objectkey = self.object_key(False)
-        for key in s3.listobjects(Bucket=bucketname, Prefix=objectkey + '/'):
-            key.delete()
+
+        bucket.objects.filter(Prefix=objectkey + '/').delete()
 
     def object_key(self, hashkey=False):
 
