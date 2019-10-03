@@ -4,31 +4,26 @@ After applying your changes and committing them you need to go through the follo
 
 ## Requirements
 
+* PyPi credentials (moodlehq) to publish the new packages (twine will ask for them)
 * Install wheels and twine if they are not installed yet
 
-<!-- not displayed as a code block under a list unless we add something like this comment -->
-    pip install wheel
-    pip install twine
-
-* Create ~/.pypirc with moodlehq account data if if it not created yet (more info in https://packaging.python.org/tutorials/distributing-packages/#create-an-account)
+        pip install wheel
+        pip install twine
 
 ## Release process
 
-* Bump moodlemlbackend/VERSION version
-
+* Ensure that the VERSION git tag has been created.
+* Verify that ```moodlemlbackend/VERSION``` version matches the new version.
 * Build the wheel (it generates the dist files)
 
-<!-- not displayed as a code block under a list unless we add something like this comment -->
-    python setup.py bdist_wheel --universal
+        python setup.py bdist_wheel --universal
 
-* Upload the generated dist file.
+* Upload the generated dist file (credentials required)
 
-<!-- not displayed as a code block under a list unless we add something like this comment -->
-    twine upload dist/*
+        twine upload dist/*
 
-* Add all new files, commit changes and push them to https://github.com/moodlehq/moodle-mlbackend-python
-
-* Update the required moodlemlbackend package version in Moodle core (REQUIRED_PIP_PACKAGE_VERSION constant version in \mlbackend_python\processor class)
+* Add all new dist files, commit changes and push them upstream.
+* Update the required moodle-mlbackend package version in Moodle core (```REQUIRED_PIP_PACKAGE_VERSION``` constant version in \mlbackend_python\processor class)
 
 
-More info about packaging and uploading as well as detailed instructions can be found in https://packaging.python.org/tutorials/distributing-packages/#packaging-your-project
+More info about packaging and uploading as well as detailed instructions can be found in <https://packaging.python.org/tutorials/packaging-projects/>
