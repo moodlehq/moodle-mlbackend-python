@@ -18,10 +18,14 @@ def check_access(f):
             raise Exception(
                 envvarname + ' environment var is not set in the server.')
 
-        if re.match(os.environ[envvarname], '[^A-Za-z0-9_\-,$]'):
+        if re.search(os.environ[envvarname], '[^A-Za-z0-9_\-,:$]'):
             raise Exception(
-                'The value of ' + envvarname + ' environment var does not ' +
-                ' adhere to [^A-Za-z0-9_\-,$]')
+                'The value of ' + envvarname + ' environment should be '
+                'a list of colon separated user/password values.\n'
+                'Usernames and passwords can contain letters, numbers, '
+                'and the symbols "$_-".\n'
+                'Like this:\n'
+                '  "user1:password1,user2:password2,user_3:pa$$word3"')
 
         users = os.environ[envvarname].split(',')
 
