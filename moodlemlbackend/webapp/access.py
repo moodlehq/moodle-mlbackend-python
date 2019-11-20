@@ -18,10 +18,10 @@ def check_access(f):
             raise Exception(
                 envvarname + ' environment var is not set in the server.')
 
-        if re.match(os.environ[envvarname], '[^A-Za-z0-9_\-,$]'):
+        if re.search(os.environ[envvarname], '[^A-Za-z0-9_\-,:$]'):
             raise Exception(
                 'The value of ' + envvarname + ' environment var does not ' +
-                ' adhere to [^A-Za-z0-9_\-,$]')
+                ' adhere to ^[A-Za-z0-9_\-,:]+$')
 
         users = os.environ[envvarname].split(',')
 
