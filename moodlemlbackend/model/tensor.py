@@ -21,7 +21,10 @@ class TF(object):
         self.batch_size = batch_size
         self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
-        self.n_hidden = 10
+
+        # Based on the number of features although we need a reasonable
+        # minimum.
+        self.n_hidden = max(4, int(n_features / 3))
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
