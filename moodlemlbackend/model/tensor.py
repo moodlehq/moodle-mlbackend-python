@@ -144,6 +144,11 @@ class TF(object):
 
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.probs, labels=self.y_))
+
+            regularizer = (tf.nn.l2_loss(W['input-hidden']) * 0.01) + \
+                (tf.nn.l2_loss(W['hidden-output']) * 0.01)
+            loss = tf.reduce_mean(loss + regularizer)
+
             tf.summary.scalar("loss", loss)
 
         with tf.name_scope('accuracy'):
