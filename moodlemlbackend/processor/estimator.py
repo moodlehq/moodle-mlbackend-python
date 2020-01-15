@@ -54,17 +54,12 @@ class Estimator(object):
         self.runid = str(int(time.time() * 1000))
 
         self.persistencedir = os.path.join(directory, 'classifier')
-        if os.path.isdir(self.persistencedir) is False:
-            if os.makedirs(self.persistencedir) is False:
-                raise OSError('Directory ' + self.persistencedir +
-                              ' can not be created.')
+
+        os.makedirs(self.persistencedir, exist_ok=True)
 
         # We define logsdir even though we may not use it.
         self.logsdir = os.path.join(directory, 'logs', self.get_runid())
-        if os.path.isdir(self.logsdir):
-            raise OSError('Directory ' + self.logsdir + ' already exists.')
-        if os.makedirs(self.logsdir) is False:
-            raise OSError('Directory ' + self.logsdir + ' can not be created.')
+        os.makedirs(self.logsdir)
 
         # Logging.
         logfile = os.path.join(self.logsdir, 'info.log')
