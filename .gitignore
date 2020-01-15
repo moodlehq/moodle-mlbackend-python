@@ -1,3 +1,4 @@
 *.pyc
 /moodlemlbackend.egg-info
 /build
+/test/temp-data
