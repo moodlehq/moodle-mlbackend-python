@@ -63,6 +63,8 @@ class Estimator(object):
 
         # Logging.
         logfile = os.path.join(self.logsdir, 'info.log')
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
         logging.basicConfig(filename=logfile, level=logging.DEBUG)
         warnings.showwarning = self.warnings_to_log
 
@@ -224,9 +226,32 @@ class Classifier(Estimator):
     def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
 
-        n_epoch = 50
-        batch_size = 1000
+        try:
+            n_rows = X.shape[0]
+        except AttributeError:
+            # No X during model import.
+            # n_rows value does not really matter during import.
+            n_rows = 1
+
+        if n_rows < 1000:
+            batch_size = n_rows
+        else:
+            # A min batch size of 1000.
+            x_tenpercent = int(n_rows / 10)
+            batch_size = max(1000, x_tenpercent)
+
+        # We need ~10,000 iterations so that the 0.5 learning rate decreases
+        # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
+        # algorithm has some time to finish the training on lr < 0.01.
         starter_learning_rate = 0.5
+        if n_rows > batch_size:
+            n_epoch = int(12000 / (n_rows / batch_size))
+        else:
+            # Less than 1000 rows (1000 is the minimum batch size we defined).
+            # We don't need to iterate than many times if we have less than
+            # 1000 records, starting with 0.5 the learning rate will get to
+            # ~0.05 in 5000 epochs.
+            n_epoch = 5000
 
         n_classes = self.n_classes
         n_features = self.n_features
@@ -378,6 +403,7 @@ class Classifier(Estimator):
             logging.info("AUC: %.2f%%", result['auc'])
             logging.info("AUC standard deviation: %.4f",
                          result['auc_deviation'])
+
         logging.info("Accuracy: %.2f%%", result['accuracy'] * 100)
         logging.info("Precision (predicted elements that are real): %.2f%%",
                      result['precision'] * 100)
@@ -400,21 +426,27 @@ class Classifier(Estimator):
         y_test = y_test.T[0]
 
         if self.is_binary:
-            # ROC curve calculations.
-            fpr, tpr, _ = roc_curve(y_test, y_score)
 
-            # When the amount of samples is small we can randomly end up
-            # having just one class instead of examples of each, which
-            # triggers a "UndefinedMetricWarning: No negative samples in
-            # y_true, false positive value should be meaningless"
-            # and returning NaN.
-            if math.isnan(fpr[0]) or math.isnan(tpr[0]):
-                return
+            try:
+                # ROC curve calculations.
+                fpr, tpr, _ = roc_curve(y_test, y_score)
 
-            self.aucs.append(auc(fpr, tpr))
+                # When the amount of samples is small we can randomly end up
+                # having just one class instead of examples of each, which
+                # triggers a "UndefinedMetricWarning: No negative samples in
+                # y_true, false positive value should be meaningless"
+                # and returning NaN.
+                if math.isnan(fpr[0]) or math.isnan(tpr[0]):
+                    return
 
-            # Draw it.
-            self.roc_curve_plot.add(fpr, tpr, 'Positives')
+                self.aucs.append(auc(fpr, tpr))
+
+                # Draw it.
+                self.roc_curve_plot.add(fpr, tpr, 'Positives')
+
+            except Exception:
+                # Nevermind.
+                pass
 
         # Calculate accuracy, sensitivity and specificity.
         [acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
@@ -468,8 +500,14 @@ class Classifier(Estimator):
 
         result = dict()
         if self.is_binary and len(self.aucs) > 0:
-            result['auc'] = np.mean(self.aucs)
-            result['auc_deviation'] = np.std(self.aucs)
+            try:
+                result['auc'] = np.mean(self.aucs)
+                result['auc_deviation'] = np.std(self.aucs)
+            except Exception:
+                # No worries.
+                result['auc'] = 0.0
+                result['auc_deviation'] = 1.0
+                pass
 
         result['accuracy'] = avg_accuracy
         result['precision'] = avg_precision

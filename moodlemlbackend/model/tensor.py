@@ -21,7 +21,10 @@ class TF(object):
         self.batch_size = batch_size
         self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
-        self.n_hidden = 10
+
+        # Based on the number of features although we need a reasonable
+        # minimum.
+        self.n_hidden = max(4, int(n_features / 3))
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
@@ -141,6 +144,11 @@ class TF(object):
 
             loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=self.probs, labels=self.y_))
+
+            regularizer = (tf.nn.l2_loss(W['input-hidden']) * 0.01) + \
+                (tf.nn.l2_loss(W['hidden-output']) * 0.01)
+            loss = tf.reduce_mean(loss + regularizer)
+
             tf.summary.scalar("loss", loss)
 
         with tf.name_scope('accuracy'):
