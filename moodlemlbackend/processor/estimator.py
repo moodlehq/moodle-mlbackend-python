@@ -20,7 +20,7 @@ import joblib
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score
 from sklearn.utils import shuffle
 import tensorflow as tf
 
@@ -79,7 +79,8 @@ class Estimator(object):
         np.seterr(all='raise')
 
     @staticmethod
-    def warnings_to_log(message, category, filename, lineno):
+    def warnings_to_log(message, category, filename, lineno, file=None,
+                        line=None):
         """showwarnings overwritten"""
         logging.warning('%s:%s: %s:%s', filename, lineno,
                         category.__name__, message)
@@ -421,12 +422,12 @@ class Classifier(Estimator):
             self.roc_curve_plot.add(fpr, tpr, 'Positives')
 
         # Calculate accuracy, sensitivity and specificity.
-        [acc, prec, rec, f1_score] = self.calculate_metrics(
-            y_test == 1, y_pred == 1)
+        [acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
+
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
-        self.f1_scores.append(f1_score)
+        self.f1_scores.append(f1score)
 
     @staticmethod
     def get_score(classifier, X_test, y_test):
@@ -439,38 +440,22 @@ class Classifier(Estimator):
         return probs[range(n_samples), y_test]
 
     @staticmethod
-    def calculate_metrics(y_test_true, y_pred_true):
-        """Calculates confusion matrix metrics"""
+    def calculate_metrics(y_test, y_pred):
+        """Calculates the accuracy metrics"""
 
-        test_p = y_test_true
-        test_n = np.invert(test_p)
+        accuracy = accuracy_score(y_test, y_pred)
 
-        pred_p = y_pred_true
-        pred_n = np.invert(pred_p)
+        # Wrapping all the scoring function calls in a try & except to prevent
+        # the following warning to result in a "TypeError: warnings_to_log()
+        # takes 4 positional arguments but 6 were given" when sklearn calls
+        # warnings.warn with an "UndefinedMetricWarning:Precision is
+        # ill-defined and being set to 0.0 in labels with no predicted
+        # samples." message on python 3.7.x
+        precision = precision_score(y_test, y_pred, average='weighted')
+        recall = recall_score(y_test, y_pred, average='weighted')
+        f1score = f1_score(y_test, y_pred, average='weighted')
 
-        pp = np.count_nonzero(test_p)
-        nn = np.count_nonzero(test_n)
-        tp = np.count_nonzero(test_p * pred_p)
-        tn = np.count_nonzero(test_n * pred_n)
-        fn = np.count_nonzero(test_p * pred_n)
-        fp = np.count_nonzero(test_n * pred_p)
-
-        accuracy = (tp + tn) / (pp + nn)
-        if tp != 0 or fp != 0:
-            precision = tp / (tp + fp)
-        else:
-            precision = 0
-        if tp != 0 or fn != 0:
-            recall = tp / (tp + fn)
-        else:
-            recall = 0
-
-        if precision + recall != 0:
-            f1_score = 2 * precision * recall / (precision + recall)
-        else:
-            f1_score = 0
-
-        return [accuracy, precision, recall, f1_score]
+        return [accuracy, precision, recall, f1score]
 
     def get_evaluation_results(self, min_score, accepted_deviation):
         """Returns the evaluation results after all iterations"""
