@@ -58,7 +58,11 @@ class LocalFS_setup_base_dir(object):
 
         self.storage = storage
 
-        localbasedir = os.environ.get("MOODLE_MLBACKEND_PYTHON_DIR")
+        if "MOODLE_MLBACKEND_PYTHON_DIR" not in os.environ:
+            raise IOError(
+                'Set env MOODLE_MLBACKEND_PYTHON_DIR to an existing dir')
+
+        localbasedir = os.environ["MOODLE_MLBACKEND_PYTHON_DIR"]
 
         if not os.path.exists(localbasedir):
             raise IOError(
