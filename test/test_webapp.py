@@ -13,6 +13,7 @@ import inspect
 import subprocess
 import numpy as np
 
+import stash
 import pytest
 from flask import url_for
 import testdata
@@ -26,6 +27,7 @@ USERS = {
     'a': 'b',
     'kaka': 'kea',
 }
+
 
 # pylint et.al. will GNASH THEIR TEETH at this, but we need to set up
 # the environment before importing webapp.
@@ -242,6 +244,38 @@ def temporary_model(client, uniqueid=None, auth=None, **kwargs):
         _delete_model(client.post, uniqueid, headers=auth)
 
 
+def post_real_data_no_cleanup(post, filename, url=None, **kwargs):
+    if kwargs == {}:
+        kwargs = _auth('a')
+
+    data, content_headers, _url = stash.load(filename)
+
+    if url is None:
+        url = url_for(_url)
+    return post(url, data=data, headers=kwargs, **content_headers)
+
+
+@contextmanager
+def post_real_data(post, filename, url=None, **kwargs):
+    """Replay a stashed request.
+
+    - post is usually client.post
+    - kwargs are headers; if empty, correct auth is used.
+    """
+    if kwargs == {}:
+        kwargs = _auth('a')
+
+    data, content_headers, _url = stash.load(filename)
+    uid = stash.get_uid(data, content_headers)
+
+    if url is None:
+        url = url_for(_url)
+    try:
+        yield post(url, data=data, headers=kwargs, **content_headers)
+    finally:
+        _delete_model(post, uniqueid=uid, headers=kwargs)
+
+
 def _export_get(get, uniqueid='1', **kwargs):
     # a helper that does all the right things except auth
     data = {
@@ -293,6 +327,60 @@ def test_training_only(client):
                               headers=auth)
         assert resp.status_code == 200
         results = json.loads(resp.data)
+
+
+@pytest.mark.skip(reason="quite long")
+def test_stashed_training_short(client):
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'test-366-1904-training.bz2')
+
+    with post_real_data(client.post, filename) as resp:
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+        pprint(results)
+
+
+@pytest.mark.skip(reason="long")
+def test_stashed_training_long(client):
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'test-415-37953-training.bz2'
+    )
+    with post_real_data(client.post, filename) as resp:
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+        pprint(results)
+
+
+@pytest.mark.skip(reason="slow, likely to fail because the score is incorrect")
+def test_stashed_training_prediction(client):
+    train = os.path.join(HERE,
+                         'test-requests',
+                         'test-366-1904-training.bz2'
+    )
+    predict = os.path.join(HERE,
+                           'test-requests',
+                           'test-366-252-prediction.bz2'
+    )
+
+    with post_real_data(client.post, train) as resp:
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+        pprint(results)
+        resp_p = post_real_data_no_cleanup(client.post, predict)
+        # we don't know the ground truth for this request, but we can
+        # ensure the answer is well formed.
+        assert resp_p.status_code == 200
+        results = json.loads(resp_p.data)
+        assert 'predictions' in results
+        predictions = results['predictions']
+        assert isinstance(predictions, list)
+        assert len(predictions) == 252
+        for sid, category, score in predictions:
+            assert isinstance(sid, str)
+            assert category in ('0', '1')
+            assert 0 <= float(score) <= 1
 
 
 def test_training_prediction_evaluation(client):
