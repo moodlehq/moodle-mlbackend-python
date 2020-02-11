@@ -91,30 +91,30 @@ class TF(object):
         # Placeholders for input values.
         with tf.name_scope('inputs'):
             self.x = tf.placeholder(
-                tf.float64, [None, self.n_features], name='x')
+                tf.float32, [None, self.n_features], name='x')
             self.y_ = tf.placeholder(
-                tf.float64, [None, self.n_classes], name='dataset-y')
+                tf.float32, [None, self.n_classes], name='dataset-y')
 
         # Variables for computed stuff, we need to initialise them now.
         with tf.name_scope('initialise-vars'):
 
             if initial_weights is False:
                 initial_w_hidden = tf.random_normal(
-                    [self.n_features, self.n_hidden], dtype=tf.float64)
+                    [self.n_features, self.n_hidden], dtype=tf.float32)
                 initial_w_output = tf.random_normal(
-                    [self.n_hidden, self.n_classes], dtype=tf.float64)
+                    [self.n_hidden, self.n_classes], dtype=tf.float32)
                 initial_b_hidden = tf.random_normal(
-                    [self.n_hidden], dtype=tf.float64)
+                    [self.n_hidden], dtype=tf.float32)
                 initial_b_output = tf.random_normal(
-                    [self.n_classes], dtype=tf.float64)
+                    [self.n_classes], dtype=tf.float32)
             else:
-                initial_w_hidden = np.float64(
+                initial_w_hidden = np.float32(
                     initial_weights['initialise-vars/input-to-hidden-weights'])
-                initial_w_output = np.float64(
+                initial_w_output = np.float32(
                     initial_weights['initialise-vars/hidden-to-output-weights'])
-                initial_b_hidden = np.float64(
+                initial_b_hidden = np.float32(
                     initial_weights['initialise-vars/hidden-bias'])
-                initial_b_output = np.float64(
+                initial_b_output = np.float32(
                     initial_weights['initialise-vars/output-bias'])
 
             W = {

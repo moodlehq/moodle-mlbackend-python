@@ -112,7 +112,7 @@ class Estimator(object):
         """Extracts labelled samples from the provided data file"""
 
         # We skip 3 rows of metadata.
-        samples = np.genfromtxt(filepath, delimiter=',', dtype='float',
+        samples = np.genfromtxt(filepath, delimiter=',', dtype=np.float32,
                                 skip_header=3, missing_values='',
                                 filling_values=False)
         samples = shuffle(samples)
@@ -144,7 +144,7 @@ class Estimator(object):
         # We don't know the number of columns, we can only get them all and
         # discard the first one.
         samples = np.genfromtxt(filepath, delimiter=',',
-                                dtype=float, skip_header=3,
+                                dtype=np.float32, skip_header=3,
                                 missing_values='', filling_values=False)
 
         # This is a single sample dataset, genfromtxt returns the samples
