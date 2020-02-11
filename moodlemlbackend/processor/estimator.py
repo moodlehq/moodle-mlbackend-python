@@ -114,7 +114,7 @@ class Estimator(object):
         # We skip 3 rows of metadata.
         samples = np.genfromtxt(filepath, delimiter=',', dtype=np.float32,
                                 skip_header=3, missing_values='',
-                                filling_values=False)
+                                filling_values=0.0)
         samples = shuffle(samples)
 
         # This is a single sample dataset, genfromtxt returns the samples
