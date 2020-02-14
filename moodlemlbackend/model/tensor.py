@@ -233,9 +233,9 @@ class TF(object):
                 index = index + 1
 
     def predict(self, x):
-        """Returns predictions"""
+        """Find the index of the most probable class."""
         return self.sess.run(tf.argmax(self.y, 1), {self.x: x})
 
     def predict_proba(self, x):
-        """Returns predicted probabilities"""
-        return self.sess.run(self.probs, {self.x: x})
+        """Find the probability distribution over all classes."""
+        return self.sess.run(tf.concat(self.y, 1), {self.x: x})

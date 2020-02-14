@@ -439,7 +439,6 @@ def test_stashed_training_long(client):
         pprint(results)
 
 
-@pytest.mark.skip(reason="slow, likely to fail because the score is incorrect")
 def test_stashed_training_prediction(client):
     train = os.path.join(HERE,
                          'test-requests',
