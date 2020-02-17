@@ -47,6 +47,7 @@ class Estimator(object):
 
         self.X = None
         self.y = None
+        self.variable_columns = None
 
         self.modelid = modelid
 
@@ -94,10 +95,14 @@ class Estimator(object):
 
         classifier_filepath = os.path.join(
             model_dir, PERSIST_FILENAME)
-        return joblib.load(classifier_filepath)
+
+        classifier = joblib.load(classifier_filepath)
+        self.variable_columns = getattr(classifier, 'variable_columns', None)
+        return classifier
 
     def store_classifier(self, trained_classifier):
         """Stores the provided classifier"""
+        trained_classifier.variable_columns = self.variable_columns
         classifier_filepath = os.path.join(
             self.persistencedir, PERSIST_FILENAME)
         joblib.dump(trained_classifier, classifier_filepath)
@@ -254,7 +259,7 @@ class Classifier(Estimator):
             n_epoch = 5000
 
         n_classes = self.n_classes
-        n_features = self.n_features
+        n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          starter_learning_rate, self.get_tensor_logdir(),
@@ -273,9 +278,21 @@ class Classifier(Estimator):
         # Returns the trained classifier.
         return classifier
 
+    def remove_invariant_columns(self, X):
+        if self.variable_columns is None:
+            return X
+        return X[:,self.variable_columns]
+
+    def find_invariant_columns(self, X):
+        if self.variable_columns is not None:
+            logging.warning("variable columns have already been found!")
+        self.variable_columns = np.nonzero(np.var(X, 0))[0]
+
     def train_dataset(self, filepath):
         """Train the model with the provided dataset"""
-        [self.X, self.y] = self.get_labelled_samples(filepath)
+        X, self.y = self.get_labelled_samples(filepath)
+        self.find_invariant_columns(X)
+        self.X = self.remove_invariant_columns(X)
 
         if len(np.unique(self.y)) < self.n_classes:
             # We need samples belonging to all different classes.
@@ -315,6 +332,7 @@ class Classifier(Estimator):
 
         classifier = self.load_classifier()
 
+        x = self.remove_invariant_columns(x)
         # Prediction and calculated probability of each of the labels.
         y_proba = classifier.predict_proba(x)
         y_pred = classifier.predict(x)
@@ -337,7 +355,9 @@ class Classifier(Estimator):
                          trained_model_dir=False):
         """Evaluate the model using the provided dataset"""
 
-        [self.X, self.y] = self.get_labelled_samples(filepath)
+        X, self.y = self.get_labelled_samples(filepath)
+        self.find_invariant_columns(X)
+        self.X = self.remove_invariant_columns(X)
 
         # Classes balance check.
         y_array = np.array(self.y.T[0])
