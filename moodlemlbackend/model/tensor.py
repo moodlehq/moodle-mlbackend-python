@@ -202,6 +202,7 @@ class TF(object):
         # work with multiple classes.
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
+        y = y.astype(np.float32)
 
         # floats division otherwise we get 0 if n_examples is lower than the
         # batch size and minimum 1 iteration.
