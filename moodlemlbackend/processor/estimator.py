@@ -100,6 +100,9 @@ class Estimator(object):
 
         classifier = joblib.load(classifier_filepath)
         self.variable_columns = getattr(classifier, 'variable_columns', None)
+        path = os.path.join(model_dir, 'model.ckpt')
+        classifier.load(path)
+
         return classifier
 
     def store_classifier(self, trained_classifier):
@@ -561,18 +564,11 @@ class Classifier(Estimator):
         """Stores the classifier and saves a checkpoint of the tensors state"""
 
         # Store the graph state.
-        saver = tf.train.Saver(save_relative_paths=True)
-        sess = trained_classifier.get_session()
-
         path = os.path.join(self.persistencedir, 'model.ckpt')
-        saver.save(sess, path)
-
-        # Also save it to the logs dir to see the embeddings.
+        trained_classifier.save(path)
         path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
-        saver.save(sess, path)
-
-        # Save the class data.
-        super(Classifier, self).store_classifier(trained_classifier)
+        trained_classifier.save(path)
+        super().store_classifier(trained_classifier)
 
     def load_classifier(self, model_dir=False):
         """Loads a previously trained classifier and restores its state"""
@@ -584,10 +580,6 @@ class Classifier(Estimator):
 
         classifier.set_tensor_logdir(self.get_tensor_logdir())
 
-        # Now restore the graph state.
-        saver = tf.train.Saver(save_relative_paths=True)
-        path = os.path.join(model_dir, 'model.ckpt')
-        saver.restore(classifier.get_session(), path)
         return classifier
 
     def export_classifier(self, exporttmpdir):
