@@ -103,14 +103,6 @@ class TF(object):
                      tf.keras.metrics.AUC()],
         )
 
-    def get_n_features(self):
-        """Return the number of features"""
-        return self.n_features
-
-    def get_n_classes(self):
-        """Return the number of features"""
-        return self.n_classes
-
 
     def save(self, path):
         self.model.save(path)
