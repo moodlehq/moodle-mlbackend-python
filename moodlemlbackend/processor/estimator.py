@@ -335,7 +335,7 @@ class Classifier(Estimator):
         y_proba = classifier.predict_proba(x)
         y_pred = classifier.predict(x)
         # Probabilities of the predicted response being correct.
-        probabilities = y_proba[range(len(y_proba)), y_pred]
+        probabilities = y_proba[np.arange(len(y_proba)), y_pred]
 
         result = dict()
         result['status'] = OK
