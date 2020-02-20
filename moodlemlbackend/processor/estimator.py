@@ -636,10 +636,9 @@ class Classifier(Estimator):
 
     def classifier_exists(self):
         """Checks if there is a previously stored classifier"""
-
-        classifier_dir = os.path.join(self.persistencedir,
-                                      PERSIST_FILENAME)
-        return os.path.isfile(classifier_dir)
+        classifier_file = os.path.join(self.persistencedir,
+                                       PERSIST_FILENAME)
+        return os.path.isfile(classifier_file)
 
     def get_tensor_logdir(self):
         """Returns the directory to store tensorflow framework logs"""
