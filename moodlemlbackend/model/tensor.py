@@ -16,11 +16,10 @@ class TF(object):
     """Tensorflow classifier"""
 
     def __init__(self, n_features, n_classes, n_epoch, batch_size,
-                 starter_learning_rate, tensor_logdir, initial_weights=False):
+                 tensor_logdir, initial_weights=False):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
-        self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
 
         # Based on the number of features although we need a reasonable
