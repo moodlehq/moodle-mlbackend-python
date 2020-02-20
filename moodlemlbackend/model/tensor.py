@@ -25,7 +25,7 @@ class TF(object):
         # Based on the number of features although we need a reasonable
         # minimum.
         self.n_hidden = max(4, int(n_features / 3))
-        self.n_hidden_layers = 1
+        self.n_hidden_layers = 2
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
