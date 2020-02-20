@@ -471,7 +471,7 @@ def test_stashed_training_prediction(client):
 def test_training_prediction_evaluation(client):
     zipdata = _get_import_zip(n_hidden=10)
 
-    dataset = get_dataset(n=2000)
+    dataset = get_dataset(n=10000)
 
     with temporary_model(client, zipdata=zipdata) as (uid, auth):
         resp = _training_post(client.post,
