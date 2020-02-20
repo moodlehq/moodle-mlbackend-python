@@ -44,7 +44,6 @@ class TF(object):
         # understand and saving disk space.
         if os.listdir(self.tensor_logdir) == []:
             self.log_run = True
-            self.init_logging()
         else:
             self.log_run = False
 
@@ -54,9 +53,6 @@ class TF(object):
         del state['y_']
         del state['y']
         del state['probs']
-
-        del state['file_writer']
-        del state['merged']
         del state['model']
         # We also remove this as it depends on the run.
         del state['tensor_logdir']
@@ -74,12 +70,6 @@ class TF(object):
         run, it can not be restored."""
 
         self.tensor_logdir = tensor_logdir
-        try:
-            self.file_writer
-            self.merged
-        except AttributeError:
-            # Init logging if logging vars are not defined.
-            self.init_logging()
 
     def build_graph(self, initial_weights=False):
         """Builds the computational graph without feeding any data in"""
@@ -111,12 +101,6 @@ class TF(object):
             loss='categorical_crossentropy',
             metrics=['RootMeanSquaredError'],
         )
-
-    def init_logging(self):
-        """Starts logging the tensors state"""
-        self.file_writer = tf.summary.FileWriter(
-            self.tensor_logdir, tf.compat.v1.get_default_graph())
-        self.merged = tf.summary.merge_all()
 
     def get_n_features(self):
         """Return the number of features"""
