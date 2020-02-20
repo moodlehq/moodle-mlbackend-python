@@ -598,8 +598,8 @@ class Classifier(Estimator):
             export_vars[var.op.name] = var.eval(sess).tolist()
 
         # Append the number of features.
-        export_vars['n_features'] = classifier.get_n_features()
-        export_vars['n_classes'] = classifier.get_n_classes()
+        export_vars['n_features'] = classifier.n_features
+        export_vars['n_classes'] = classifier.n_classes
 
         vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
         with open(vars_file_path, 'w') as vars_file:
