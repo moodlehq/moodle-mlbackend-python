@@ -194,16 +194,6 @@ class Estimator(object):
                         'predictions may not be accurate.'
         return False
 
-    @staticmethod
-    def limit_value(value, lower_bounds, upper_bounds):
-        """Limits the value by lower and upper boundaries"""
-        if value < (lower_bounds - 1):
-            return lower_bounds
-        elif value > (upper_bounds + 1):
-            return upper_bounds
-        else:
-            return value
-
     def reset_metrics(self):
         """Resets the class metrics"""
         self.baccuracies = []
