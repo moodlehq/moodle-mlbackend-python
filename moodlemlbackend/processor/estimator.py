@@ -247,10 +247,11 @@ class Classifier(Estimator):
         n_batches = min(n_batches, 10)
         batch_size = (n_rows + n_batches - 1) // n_batches
 
-        # We need ~10,000 iterations so that the 0.5 learning rate decreases
-        # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
-        # algorithm has some time to finish the training on lr < 0.01.
-        n_epoch = (12000 * batch_size + n_rows - 1) // n_rows
+        # the number of epochs can be smaller if we have a large
+        # number of samples. On the other hand it must also be small
+        # if we have very few samples, or the model will overfit. What
+        # we can say is that with larger batches we need more epochs.
+        n_epoch = 40 + batch_size // 20
 
         n_classes = self.n_classes
         n_features = X.shape[1]
