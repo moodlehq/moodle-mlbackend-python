@@ -109,7 +109,9 @@ class TF(object):
             optimizer='rmsprop',
             #loss='binary_crossentropy',
             loss='categorical_crossentropy',
-            metrics=['RootMeanSquaredError'],
+            metrics=['RootMeanSquaredError',
+                     'CategoricalAccuracy',
+                     tf.keras.metrics.AUC()],
         )
 
     def init_logging(self):
