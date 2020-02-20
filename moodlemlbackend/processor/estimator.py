@@ -39,6 +39,8 @@ NOT_ENOUGH_DATA = 8
 PERSIST_FILENAME = 'classifier.pkl'
 EXPORT_MODEL_FILENAME = 'model.json'
 
+TARGET_BATCH_SIZE = 1000
+
 
 class Estimator(object):
     """Abstract estimator class"""
@@ -238,25 +240,15 @@ class Classifier(Estimator):
             # n_rows value does not really matter during import.
             n_rows = 1
 
-        if n_rows < 1000:
-            batch_size = n_rows
-        else:
-            # A min batch size of 1000.
-            x_tenpercent = int(n_rows / 10)
-            batch_size = max(1000, x_tenpercent)
+        n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
+        n_batches = min(n_batches, 10)
+        batch_size = (n_rows + n_batches - 1) // n_batches
 
         # We need ~10,000 iterations so that the 0.5 learning rate decreases
         # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
         # algorithm has some time to finish the training on lr < 0.01.
         starter_learning_rate = 0.5
-        if n_rows > batch_size:
-            n_epoch = int(12000 / (n_rows / batch_size))
-        else:
-            # Less than 1000 rows (1000 is the minimum batch size we defined).
-            # We don't need to iterate than many times if we have less than
-            # 1000 records, starting with 0.5 the learning rate will get to
-            # ~0.05 in 5000 epochs.
-            n_epoch = 5000
+        n_epoch = (12000 * batch_size + n_rows - 1) // n_rows
 
         n_classes = self.n_classes
         n_features = X.shape[1]
