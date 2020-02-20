@@ -250,14 +250,13 @@ class Classifier(Estimator):
         # We need ~10,000 iterations so that the 0.5 learning rate decreases
         # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
         # algorithm has some time to finish the training on lr < 0.01.
-        starter_learning_rate = 0.5
         n_epoch = (12000 * batch_size + n_rows - 1) // n_rows
 
         n_classes = self.n_classes
         n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
-                         starter_learning_rate, self.get_tensor_logdir(),
+                         self.get_tensor_logdir(),
                          initial_weights=initial_weights)
 
     def train(self, X_train, y_train, classifier=False):
