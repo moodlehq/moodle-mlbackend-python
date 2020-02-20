@@ -220,10 +220,7 @@ class Classifier(Estimator):
             self.is_binary = self.n_classes == 2
 
         self.tensor_logdir = self.get_tensor_logdir()
-        if os.path.isdir(self.tensor_logdir) is False:
-            if os.makedirs(self.tensor_logdir) is False:
-                raise OSError('Directory ' + self.tensor_logdir +
-                              ' can not be created.')
+        os.makedirs(self.tensor_logdir, exist_ok=True)
 
     def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
