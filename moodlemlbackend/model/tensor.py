@@ -29,9 +29,6 @@ class TF(object):
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
-        self.x = None
-        self.y_ = None
-        self.y = None
         self.probs = None
         self.loss = None
 
@@ -48,9 +45,6 @@ class TF(object):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        del state['x']
-        del state['y_']
-        del state['y']
         del state['probs']
         del state['model']
         # We also remove this as it depends on the run.
@@ -88,21 +82,16 @@ class TF(object):
                                         dtype=MODEL_DTYPE)(prev)
 
         self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
-
-        self.x = inputs
-        self.y = outputs
         self.compile()
 
     def compile(self):
         self.model.compile(
             optimizer='rmsprop',
-            #loss='binary_crossentropy',
             loss='categorical_crossentropy',
             metrics=['RootMeanSquaredError',
                      'CategoricalAccuracy',
                      tf.keras.metrics.AUC()],
         )
-
 
     def save(self, path):
         self.model.save(path)
