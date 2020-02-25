@@ -256,7 +256,7 @@ def post_real_data_no_cleanup(post, filename, url=None, **kwargs):
 
 
 @contextmanager
-def post_real_data(post, filename, url=None, **kwargs):
+def post_real_data(post, filename, url=None, extra_args=None, **kwargs):
     """Replay a stashed request.
 
     - post is usually client.post
@@ -268,8 +268,12 @@ def post_real_data(post, filename, url=None, **kwargs):
     data, content_headers, _url = stash.load(filename)
     uid = stash.get_uid(data, content_headers)
 
+    if extra_args is not None:
+        data = stash.set_args(data, content_headers, extra_args)
+
     if url is None:
         url = url_for(_url)
+
     try:
         yield post(url, data=data, headers=kwargs, **content_headers)
     finally:
