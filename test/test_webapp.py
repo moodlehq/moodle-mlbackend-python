@@ -345,6 +345,84 @@ def test_stashed_training_short(client):
         pprint(results)
 
 
+def _stashed_evaluation(client,
+                        filename,
+                        expected_ranges,
+                        niterations=3):
+    url = url_for('evaluation')
+    # the backend wants to make assertions about the expected score
+    # and deviation, but we do that here instead.
+    args = {'minscore': 0,
+            'maxdeviation': 1.0,
+            'niterations': niterations
+            }
+
+    with post_real_data(client.post,
+                        filename,
+                        url=url,
+                        extra_args=args) as resp:
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+        pprint(results)
+
+    for k, v in expected_ranges.items():
+        r = results[k]
+        low, high = v
+        assert low <= r <= high
+
+    return results
+
+
+def test_stashed_evaluation_short(client):
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'test-366-1904-training.bz2'
+    )
+    expected_ranges = {
+        'accuracy': [0.75, 0.95],
+        'f1_score': [0.75, 0.95],
+        'precision': [0.70, 0.95],
+        'recall': [0.70, 0.95],
+        'score': [0.75, 0.95],
+        'score_deviation': [0.0, 0.0],
+        'status': [0, 0],
+        'min_score': [0.0, 0.0],
+        'accepted_deviation': [1.0, 1.0],
+        #'auc' and 'auc_deviation' are broken
+    }
+
+    _stashed_evaluation(client,
+                        filename,
+                        expected_ranges,
+                        niterations=1)
+
+
+@pytest.mark.skip(reason="slow")
+def test_stashed_evaluation_long(client):
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'test-415-37953-training.bz2'
+    )
+
+    expected_ranges = {
+        'accuracy': [0.75, 0.95],
+        'f1_score': [0.75, 0.95],
+        'precision': [0.75, 0.95],
+        'recall': [0.75, 0.95],
+        'score': [0.75, 0.95],
+        'score_deviation': [0.0, 0.05],
+        'status': [0, 0],
+        'min_score': [0.0, 0.0],
+        'accepted_deviation': [1.0, 1.0],
+        #'auc' and 'auc_deviation' are broken
+    }
+
+    _stashed_evaluation(client,
+                        filename,
+                        expected_ranges,
+                        niterations=3)
+
+
 @pytest.mark.skip(reason="long")
 def test_stashed_training_long(client):
     filename = os.path.join(HERE,
