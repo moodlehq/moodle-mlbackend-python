@@ -42,6 +42,9 @@ os.environ["MOODLE_MLBACKEND_PYTHON_USERS"] = \
 
 import webapp
 
+# env setting to prevent deletion of (some) test models, for post
+# mortum diagnostics.
+KEEP_TEST_MODELS = os.environ.get("MOODLE_MLBACKEND_KEEP_TEST_MODELS")
 
 BAD_UID = 'an unused unique ID that does not exist ' + secrets.token_hex(10)
 
@@ -277,7 +280,8 @@ def post_real_data(post, filename, url=None, extra_args=None, **kwargs):
     try:
         yield post(url, data=data, headers=kwargs, **content_headers)
     finally:
-        _delete_model(post, uniqueid=uid, headers=kwargs)
+        if not KEEP_TEST_MODELS:
+            _delete_model(post, uniqueid=uid, headers=kwargs)
 
 
 def _export_get(get, uniqueid='1', **kwargs):
