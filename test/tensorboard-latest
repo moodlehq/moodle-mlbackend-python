@@ -1,0 +1,12 @@
+#!/bin/bash -x
+
+HERE=$(dirname $0)
+
+latest_dir=$(ls -dt $HERE/temp-data/*/*/logs/*/tensor | head -1)
+latest_events=$(ls -t $latest_dir/events* | head -1)
+
+echo "logdir: $latest_dir"
+echo "events: $latest_events"
+
+#tensorboard --logdir  $latest_dir --event_file $latest_events
+tensorboard --logdir  $latest_dir
