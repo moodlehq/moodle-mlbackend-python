@@ -119,6 +119,34 @@ def reform_body(parts, boundary):
     return b'--' + s + boundary + b'--\r\n'
 
 
+def set_args(body, headers, args):
+    """Add some simple arguments to the form submission.
+
+    If args == {'minscore': 0.6}, we add:
+
+    »»  ------------------------------973cb27b68e8
+    »»  Content-Disposition: form-data; name="minscore"
+    »»
+    »»  0.6
+    »»
+
+    including the blank line at the end, with '\r\n' line endings.
+    """
+    boundary = get_boundary(headers)
+    parts = split_body(body, boundary)
+    for k, v in args.items():
+        parts[k] = (
+            {
+                'Content-Disposition': {
+                    'form-data': None,
+                    'name': k
+                }},
+            f'{v}'.encode('utf8')
+        )
+
+    return reform_body(parts, boundary)
+
+
 def fix_sample_id(lines, sid):
     # we don't bother with full csv parsing, because these are all numbers
     # except the id
