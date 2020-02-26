@@ -4,6 +4,7 @@ from pprint import pprint
 from collections import Counter
 from io import BytesIO
 import argparse
+import json
 
 import numpy as np
 
@@ -18,11 +19,18 @@ parser.add_argument('-R', '--data-rows', const=2, type=int, nargs='?',
                     help='show n rows of data')
 parser.add_argument('-V', '--column-variance', action='store_true',
                     help='show column variance')
+parser.add_argument('-J', '--to-json', action='store_true',
+                    help='output the pickle as json and exit')
 parser.add_argument('file',
                     help='file to anonymize')
 args = parser.parse_args()
 
 a = read_pickle(args.file)
+
+if args.to_json:
+    a['data'] = a['data'].decode('utf8')
+    json.dump(a, sys.stdout, indent='  ')
+    sys.exit()
 
 data = a['data']
 headers = a['headers']
