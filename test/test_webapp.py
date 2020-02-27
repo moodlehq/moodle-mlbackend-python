@@ -484,7 +484,7 @@ def test_stashed_training_prediction(client):
         for sid, category, score in predictions:
             assert isinstance(sid, str)
             assert category in ('0', '1')
-            assert 0 <= float(score) <= 1
+            assert 0.5 <= float(score) <= 1
 
 
 def test_training_prediction_evaluation(client):
