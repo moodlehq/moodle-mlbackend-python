@@ -161,7 +161,7 @@ def _prediction_post(client, uniqueid='1', n=100, x=None, y=None, **kwargs):
     return client.post(url_for('prediction'), data=data, **kwargs), y
 
 
-def _evaluation_post(client, uniqueid, dataset=None, n=100, **kwargs):
+def _evaluation_post(client, uniqueid, dataset=None, n=10000, **kwargs):
     """Submit a dataset for evaluation"""
     if dataset is None:
         dataset = get_dataset(n=n)
@@ -494,7 +494,7 @@ def test_training_prediction_evaluation(client):
         accuracy = sum(correct) / len(correct)
         assert accuracy > 0.8
 
-        eval_data = get_dataset(n=1000)
+        eval_data = get_dataset(n=10000)
 
         resp = _evaluation_post(client,
                                 uid,
@@ -544,7 +544,7 @@ def test_prediction_untrained(client):
 def test_evaluation_bad_auth(client):
     bad_auth = _auth('x', 'y')
     with temporary_model(client) as (uid, auth):
-        resp = _evaluation_post(client, uid, headers=bad_auth)
+        resp = _evaluation_post(client, uid, headers=bad_auth, n=100)
         assert resp.status_code == 401
 
 
