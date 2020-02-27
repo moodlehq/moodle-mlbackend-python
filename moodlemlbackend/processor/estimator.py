@@ -269,7 +269,7 @@ class Classifier(Estimator):
 
         # Fit the training set. y should be an array-like.
         classifier.fit(X_train, y_train[:, 0])
-
+        self.store_classifier(classifier)
         # Returns the trained classifier.
         return classifier
 
