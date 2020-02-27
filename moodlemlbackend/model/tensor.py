@@ -29,9 +29,6 @@ class TF(object):
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
-        self.probs = None
-        self.loss = None
-
         self.build_graph(initial_weights)
 
         # During evaluation we process the same dataset multiple times,
@@ -45,7 +42,6 @@ class TF(object):
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        del state['probs']
         del state['model']
         # We also remove this as it depends on the run.
         del state['tensor_logdir']
