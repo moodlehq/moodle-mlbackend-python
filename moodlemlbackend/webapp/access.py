@@ -6,7 +6,37 @@ from functools import wraps
 from flask import request
 
 
+class MoodleMLError(Exception):
+    pass
+
+
 STASH_DIR = os.environ.get('MOODLE_ML_STASH_DIR')
+
+USER_ENV = "MOODLE_MLBACKEND_PYTHON_USERS"
+USERS = {}
+
+def _init_users():
+    users = os.environ.get(USER_ENV)
+    if users is None:
+        raise MoodleMLError(f'The value of {USER_ENV} environment should be '
+                            'a comma separated list of colon separated '
+                            'user/password values.\n'
+                            'Usernames and passwords can contain letters, '
+                            'numbers, and the symbols "$_-".\n'
+                            'Like this:\n'
+                            '  "user1:passwd1,user2:passwd2,user_3:pa$$word3"')
+
+    for userpass in users.split(','):
+        user, password = userpass.split(':', 1)
+
+        # why this assertion? well it matches the existing behaviour, and you
+        # won't believe what happens in the next commit!
+        assert ':' not in password
+
+        USERS[user] = password
+
+
+_init_users()
 
 
 def stash_data(*args, **kwargs):
@@ -42,40 +72,14 @@ def check_access(f):
         if STASH_DIR is not None:
             stash_data(*args, **kwargs)
 
-        # Check that the environment var is properly set.
-        envvarname = "MOODLE_MLBACKEND_PYTHON_USERS"
-        if envvarname not in os.environ:
-            raise Exception(
-                envvarname + ' environment var is not set in the server.')
-
-        if re.search(os.environ[envvarname], '[^A-Za-z0-9_\-,:$]'):
-            raise Exception(
-                'The value of ' + envvarname + ' environment should be '
-                'a list of colon separated user/password values.\n'
-                'Usernames and passwords can contain letters, numbers, '
-                'and the symbols "$_-".\n'
-                'Like this:\n'
-                '  "user1:password1,user2:password2,user_3:pa$$word3"')
-
-        users = os.environ[envvarname].split(',')
-
         if (request.authorization is None or
                 request.authorization.username is None or
                 request.authorization.password is None):
             # Response for the client.
             return 'No user and/or password included in the request.', 401
 
-        for user in users:
-            userdata = user.split(':')
-            if len(userdata) != 2:
-                raise Exception('Incorrect format for ' +
-                                envvarname + ' environment var. It should ' +
-                                'contain a comma-separated list of ' +
-                                'username:password.')
-
-            if (userdata[0] == request.authorization.username and
-                    userdata[1] == request.authorization.password):
-
+        passwd = USERS.get(request.authorization.username)
+        if passwd == request.authorization.password:
                 # If all good we return the return from 'f' passing the
                 # original list of params to it.
                 return f(*args, **kwargs)
