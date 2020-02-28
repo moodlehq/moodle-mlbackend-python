@@ -31,15 +31,6 @@ class TF(object):
 
         self.build_graph(initial_weights)
 
-        # During evaluation we process the same dataset multiple times,
-        # could could store each run result to the user but results would
-        # be very similar we only do it once making it simplier to
-        # understand and saving disk space.
-        if os.listdir(self.tensor_logdir) == []:
-            self.log_run = True
-        else:
-            self.log_run = False
-
     def __getstate__(self):
         state = self.__dict__.copy()
         del state['model']
@@ -96,14 +87,14 @@ class TF(object):
         self.model = tf.keras.models.load_model(path)
         self.compile()
 
-    def fit(self, X, y):
+    def fit(self, X, y, log_run=True):
         """Fit the model to the provided data"""
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
         y = y.astype(np.float32)
 
         kwargs = {}
-        if self.log_run:
+        if log_run:
             cb = tf.compat.v1.keras.callbacks.TensorBoard(
                 log_dir=self.tensor_logdir,
                 #histogram_freq=1,

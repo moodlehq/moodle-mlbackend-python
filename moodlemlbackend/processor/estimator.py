@@ -260,7 +260,7 @@ class Classifier(Estimator):
                          self.get_tensor_logdir(),
                          initial_weights=initial_weights)
 
-    def train(self, X_train, y_train, classifier=False):
+    def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
 
         if classifier is False:
@@ -268,7 +268,7 @@ class Classifier(Estimator):
             classifier = self.get_classifier(X_train, y_train)
 
         # Fit the training set. y should be an array-like.
-        classifier.fit(X_train, y_train[:, 0])
+        classifier.fit(X_train, y_train[:, 0], log_run=log_run)
         self.store_classifier(classifier)
         # Returns the trained classifier.
         return classifier
@@ -392,7 +392,7 @@ class Classifier(Estimator):
 
         else:
             # Evaluate the model by training the ML algorithm multiple times.
-            for _ in range(0, n_test_runs):
+            for i in range(n_test_runs):
                 # Split samples into training set and test set (80% - 20%)
                 X_train, X_test, y_train, y_test = train_test_split(self.X,
                                                                     self.y,
@@ -402,7 +402,8 @@ class Classifier(Estimator):
                     # tensor.
                     continue
 
-                classifier = self.train(X_train, y_train)
+                log_run = i == 0
+                classifier = self.train(X_train, y_train, log_run=log_run)
 
                 self.rate_prediction(classifier, X_test, y_test)
 
