@@ -29,6 +29,23 @@ USERS = {
 }
 
 
+def gen_password_string():
+    # set this environment var to test the old style
+    if os.environ.get("MOODLE_MLBACKEND_OLD_PASSWORDS"):
+        return ','.join(':'.join(x) for x in USERS.items())
+
+    exe = os.path.join(HERE, '..', 'gen-passwd')
+    cmd = [exe]
+    cmd.extend(USERS.keys())
+    cmd.append('-P')
+    cmd.append(','.join(USERS.values()))
+    p = subprocess.run(cmd,
+                       capture_output=True,
+                       check=True)
+
+    return p.stdout.decode('utf8').strip()
+
+
 # pylint et.al. will GNASH THEIR TEETH at this, but we need to set up
 # the environment before importing webapp.
 
@@ -36,9 +53,7 @@ DATA_DIR = os.path.join(HERE, 'temp-data')
 os.makedirs(DATA_DIR, exist_ok=True)
 os.environ["MOODLE_MLBACKEND_PYTHON_DIR"] = DATA_DIR
 
-os.environ["MOODLE_MLBACKEND_PYTHON_USERS"] = \
-    ','.join(':'.join(x) for x in USERS.items())
-
+os.environ["MOODLE_MLBACKEND_PYTHON_USERS"] = gen_password_string()
 
 import webapp
 
