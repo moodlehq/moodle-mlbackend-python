@@ -69,10 +69,18 @@ def stash_data(*args, **kwargs):
                 break
             except FileExistsError:
                 continue
+
+    # filter out sensitive/useless headers
+    headers = []
+    for h in request.headers.to_wsgi_list():
+        if h[0].lower() in {'content-type',
+                            'content-length'}:
+            headers.append(h)
+
     r = {
         'url':   request.url,
         'data':  request.get_data(),
-        'headers': request.headers.to_wsgi_list()
+        'headers': headers
     }
     pickle.dump(r, f)
     f.close()
