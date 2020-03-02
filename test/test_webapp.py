@@ -46,6 +46,10 @@ import webapp
 # mortum diagnostics.
 KEEP_TEST_MODELS = os.environ.get("MOODLE_MLBACKEND_KEEP_TEST_MODELS")
 
+# env setting to run normally skipped tests
+RUN_SLOW_TESTS = os.environ.get("MOODLE_MLBACKEND_RUN_SLOW_TESTS")
+
+
 BAD_UID = 'an unused unique ID that does not exist ' + secrets.token_hex(10)
 
 
@@ -337,7 +341,7 @@ def test_training_only(client):
         results = json.loads(resp.data)
 
 
-@pytest.mark.skip(reason="quite long")
+@pytest.mark.skipif(not RUN_SLOW_TESTS, reason="quite long")
 def test_stashed_training_short(client):
     filename = os.path.join(HERE,
                             'test-requests',
@@ -401,7 +405,7 @@ def test_stashed_evaluation_short(client):
                         niterations=1)
 
 
-@pytest.mark.skip(reason="slow")
+@pytest.mark.skipif(not RUN_SLOW_TESTS, reason="slow")
 def test_stashed_evaluation_long(client):
     filename = os.path.join(HERE,
                             'test-requests',
@@ -427,7 +431,7 @@ def test_stashed_evaluation_long(client):
                         niterations=3)
 
 
-@pytest.mark.skip(reason="long")
+@pytest.mark.skipif(not RUN_SLOW_TESTS, reason="long")
 def test_stashed_training_long(client):
     filename = os.path.join(HERE,
                             'test-requests',
@@ -631,4 +635,3 @@ def test_double_import(client):
         resp = _import_post(client.post, headers=auth)
         assert resp.status_code == 200
         _delete_model(client.post, headers=auth)
-
