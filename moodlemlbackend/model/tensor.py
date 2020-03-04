@@ -75,8 +75,7 @@ class TF(object):
         self.model.compile(
             optimizer='rmsprop',
             loss='categorical_crossentropy',
-            metrics=['RootMeanSquaredError',
-                     'CategoricalAccuracy',
+            metrics=['CategoricalAccuracy',
                      tf.keras.metrics.AUC()],
         )
 
@@ -119,14 +118,6 @@ class TF(object):
         for k, v in history.history.items():
             ret[k] = [float(x) for x in v]
 
-        # Tensorflow 1.14 uses different names for RMS error, which we
-        # regularise to the 2.0 names.
-        for k1, k2 in (('root_mean_squared_error',
-                        'RootMeanSquaredError'),
-                       ('val_root_mean_squared_error',
-                        'val_RootMeanSquaredError')):
-            if k1 in ret and k2 not in ret:
-                ret[k2] = ret[k1]
         return ret
 
     def predict(self, x):
