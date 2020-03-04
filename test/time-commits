@@ -34,14 +34,16 @@ $ ./test/time-commits old-commit older-commit
 latest test_webapp.py.
 """
 
-from subprocess import run
+from subprocess import run, CalledProcessError
 import re
 import sys
 import os
 
+SLOW_TESTS = "MOODLE_MLBACKEND_RUN_SLOW_TESTS"
+
 # This environment variable tells test_webapp to allow the slow tests,
 # which is what we want for timing purposes.
-os.environ["MOODLE_MLBACKEND_RUN_SLOW_TESTS"] = '1'
+os.environ[SLOW_TESTS] = '1'
 
 # This one makes the tests use the old style plaintext password string,
 # which not all commits might have.
@@ -76,12 +78,17 @@ def checkout_test(b=TEST_WEBAPP_COMMIT):
 
 
 def run_test():
-    p = run(PYTEST + ['-k', TEST],
-            capture_output=True,
-            check=True)
+    try:
+        p = run(PYTEST + ['-k', TEST],
+                capture_output=True,
+                check=True)
+    except CalledProcessError as e:
+        print(e.output.decode('utf8'))
+        print(e)
+        print(f'{SLOW_TESTS}=1 {" ".join(e.cmd)}')
+        return
 
     out = p.stdout.decode('utf8')
-    print(p.stderr)
     for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy']:
         m = re.search(r"'%s': (\d+\.?\d+)" % (metric,), out)
         if m is None:
@@ -120,6 +127,10 @@ def main():
     args = sys.argv[1:]
     if not args or '-h' in args or '--help' in args:
         print(__doc__)
+        sys.exit()
+
+    if args in (['-w'], ['--working-tree']):
+        run_test()
         sys.exit()
 
     original_ref = current_ref()
