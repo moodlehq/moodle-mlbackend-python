@@ -1,6 +1,5 @@
 """Tensorflow classifier"""
 
-import math
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -61,7 +60,6 @@ class TF(object):
             h = tf.keras.layers.Dense(self.n_hidden,
                                       name=f'hidden_{i+1}',
                                       activation=tf.nn.relu,
-                                      #activation=tf.nn.tanh,
                                       dtype=MODEL_DTYPE)(prev)
             prev = h
         outputs = tf.keras.layers.Dense(self.n_classes,
