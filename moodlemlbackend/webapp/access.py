@@ -54,7 +54,7 @@ _init_users()
 
 
 def stash_data(*args, **kwargs):
-    import pickle, time, random
+    import pickle, time
     reqdir = os.path.join(STASH_DIR, 'requests')
     os.makedirs(reqdir, exist_ok=True)
     t = time.strftime('%Y-%m-%d-%H-%M-%S-')
@@ -95,8 +95,8 @@ def check_access(f):
             stash_data(*args, **kwargs)
 
         if (request.authorization is None or
-                request.authorization.username is None or
-                request.authorization.password is None):
+            request.authorization.username is None or
+            request.authorization.password is None):
             # Response for the client.
             return 'No user and/or password included in the request.', 401
 
