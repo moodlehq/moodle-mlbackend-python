@@ -187,12 +187,9 @@ class Estimator(object):
     @staticmethod
     def check_classes_balance(counts):
         """Checks that the dataset contains enough samples of each class"""
-        for item1 in counts:
-            for item2 in counts:
-                if item1 > (item2 * 3):
-                    return 'Provided classes are very unbalanced, ' + \
-                        'predictions may not be accurate.'
-        return False
+        if max(counts) > min(counts) * 3:
+            return ('Provided classes are very unbalanced, '
+                    'predictions may not be accurate.')
 
     def reset_metrics(self):
         """Resets the class metrics"""
@@ -360,7 +357,7 @@ class Classifier(Estimator):
 
         logging.info('Number of samples by y value: %s', str(counts))
         balanced_classes = self.check_classes_balance(counts)
-        if balanced_classes is not False:
+        if balanced_classes:
             logging.warning(balanced_classes)
 
         # Check that we have samples belonging to all classes.
