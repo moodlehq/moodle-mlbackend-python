@@ -20,7 +20,8 @@ import joblib
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score
+from sklearn.metrics import f1_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.utils import shuffle
 import tensorflow as tf
 
@@ -205,6 +206,7 @@ class Estimator(object):
 
     def reset_metrics(self):
         """Resets the class metrics"""
+        self.baccuracies = []
         self.accuracies = []
         self.precisions = []
         self.recalls = []
@@ -468,8 +470,9 @@ class Classifier(Estimator):
                 pass
 
         # Calculate accuracy, sensitivity and specificity.
-        [acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
+        [bacc, acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
 
+        self.baccuracies.append(bacc)
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
@@ -490,6 +493,7 @@ class Classifier(Estimator):
         """Calculates the accuracy metrics"""
 
         accuracy = accuracy_score(y_test, y_pred)
+        baccuracy = balanced_accuracy_score(y_test, y_pred)
 
         # Wrapping all the scoring function calls in a try & except to prevent
         # the following warning to result in a "TypeError: warnings_to_log()
@@ -501,11 +505,12 @@ class Classifier(Estimator):
         recall = recall_score(y_test, y_pred, average='weighted')
         f1score = f1_score(y_test, y_pred, average='weighted')
 
-        return [accuracy, precision, recall, f1score]
+        return [baccuracy, accuracy, precision, recall, f1score]
 
     def get_evaluation_results(self, min_score, accepted_deviation):
         """Returns the evaluation results after all iterations"""
 
+        avg_baccuracy = np.mean(self.baccuracies)
         avg_accuracy = np.mean(self.accuracies)
         avg_precision = np.mean(self.precisions)
         avg_recall = np.mean(self.recalls)
@@ -528,6 +533,7 @@ class Classifier(Estimator):
                 result['auc_deviation'] = 1.0
                 pass
 
+        result['balanced accuracy'] = avg_baccuracy
         result['accuracy'] = avg_accuracy
         result['precision'] = avg_precision
         result['recall'] = avg_recall

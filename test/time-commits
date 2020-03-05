@@ -89,7 +89,9 @@ def run_test():
         return
 
     out = p.stdout.decode('utf8')
-    for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy']:
+
+    for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy',
+                   'balanced accuracy']:
         m = re.search(r"'%s': (\d+\.?\d+)" % (metric,), out)
         if m is None:
             print(f"{metric} is missing")
