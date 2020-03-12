@@ -234,10 +234,11 @@ def anonymize_dataset(dataset, contains_sampleid=False, seed=None):
     for i, col in enumerate(cols):
         if col == targetcolumn:
             newcols.append('TARGET')
+        elif col == 'sampleid':
+            sampleid = i
+            newcols.append(col)
         else:
             newcols.append(f'input-{i}')
-        if col == 'sampleid':
-            sampleid = i
 
     header[:] = [
         ','.join(newkeys),
@@ -320,3 +321,71 @@ def rehash(x, seed):
     hash = hashlib.sha256(s)
     hash.update(seed)
     return (h, hash.hexdigest().encode('utf-8')[:size])
+
+
+def anonymize_and_split(filename,
+                        predict_portion,
+                        seed=None):
+
+    # pickling and unpickling seems like a mighty waste,
+    # but refactoring would be worse!
+    p = anonymize(filename, seed=None)
+    a = pickle.loads(p)
+    boundary = get_boundary(a['headers'])
+    raw_data = a['data']
+    headers = a['headers']
+    url  = a['url']
+    parts = split_body(raw_data, boundary)
+    data_header, dataset = parts['dataset']
+
+    train, predict, answers = split_dataset(dataset, predict_portion)
+
+    parts['dataset'] = (data_header, train)
+    data = reform_body(parts, boundary)
+    r = {
+        'url':   url,
+        'data':  data,
+        'headers': headers + [('Content-length', str(len(data)))]
+    }
+    tpickle = pickle.dumps(r)
+
+    parts['dataset'] = (data_header, predict)
+    data = reform_body(parts, boundary)
+    r = {
+        'url':   url.replace('training', 'prediction'),
+        'data':  data,
+        'headers': headers + [('Content-length', str(len(data)))]
+    }
+    ppickle = pickle.dumps(r)
+
+    answers = json.dumps(answers).encode('utf8')
+
+    return tpickle, ppickle, answers
+
+
+def split_dataset(dataset, predict_portion):
+    lines = dataset.decode('utf8').strip().split('\n')
+
+    n_rows = len(lines) - 3
+    n_predict = int(n_rows * predict_portion)
+
+    header = lines[:3]
+    _predict = lines[3:n_predict + 3]
+
+    train = header + lines[n_predict + 3:]
+
+    cols = header[2]
+    predict_cols = 'sampleid,' + cols
+    predict_cols = predict_cols.rsplit(',', 1)[0]
+
+    answers = {}
+    predict = header[:2] + [predict_cols]
+    for i, line in enumerate(_predict):
+        line, answer = line.rsplit(',', 1)
+        k = f'sample-{i}'
+        answers[k] = float(answer)
+        predict.append(f'{k},{line}')
+
+    return ('\n'.join(train).encode('utf8'),
+            '\n'.join(predict).encode('utf8'),
+            answers)
