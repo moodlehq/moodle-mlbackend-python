@@ -17,6 +17,7 @@ import stash
 import pytest
 from flask import url_for
 import testdata
+import bz2
 
 # Set USE_ENV_USERS to true to read users and passwords from the
 # environment rather than a file.
@@ -461,30 +462,50 @@ def test_stashed_training_long(client):
 def test_stashed_training_prediction(client):
     train = os.path.join(HERE,
                          'test-requests',
-                         'test-366-1904-training.bz2'
+                         'split-evaluation-train.bz2'
     )
     predict = os.path.join(HERE,
                            'test-requests',
-                           'test-366-252-prediction.bz2'
+                           'split-evaluation-predict.bz2'
     )
+
+    answer_file = os.path.join(HERE,
+                               'test-requests',
+                               'split-evaluation-answers.bz2'
+    )
+
+    with bz2.open(answer_file) as f:
+        answers = json.load(f)
 
     with post_real_data(client.post, train) as resp:
         assert resp.status_code == 200
         results = json.loads(resp.data)
         pprint(results)
         resp_p = post_real_data_no_cleanup(client.post, predict)
-        # we don't know the ground truth for this request, but we can
-        # ensure the answer is well formed.
+
         assert resp_p.status_code == 200
         results = json.loads(resp_p.data)
         assert 'predictions' in results
         predictions = results['predictions']
         assert isinstance(predictions, list)
-        assert len(predictions) == 252
-        for sid, category, score in predictions:
-            assert isinstance(sid, str)
+        assert len(predictions) == len(answers)
+        correct = 0
+        for k, category, score in predictions:
+            correct += int(category) == answers[k]
+            assert isinstance(k, str)
             assert category in ('0', '1')
             assert 0.5 <= float(score) <= 1
+
+        accuracy = correct / len(answers)
+        assert accuracy > 0.8
+
+        # baseline is how good you could get by always saying 1 or 0,
+        # depending which is more common.
+        baseline = sum(answers.values())
+        baseline = max(baseline, len(answers) - baseline)
+        assert correct > baseline
+
+        print(f"correct: {correct}/{len(answers)} == {accuracy}")
 
 
 def test_training_prediction_evaluation(client):
