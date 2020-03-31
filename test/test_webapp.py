@@ -41,7 +41,8 @@ def gen_password_string():
     cmd.append('-P')
     cmd.append(','.join(USERS.values()))
     p = subprocess.run(cmd,
-                       capture_output=True,
+                       stdout=subprocess.PIPE,
+                       stderr=subprocess.PIPE,
                        check=True)
 
     return p.stdout.decode('utf8').strip()
