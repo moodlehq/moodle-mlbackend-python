@@ -26,7 +26,7 @@ def read_pickle(filename):
     raise OSError(f"could not open '{filename}'")
 
 
-def load(filename):
+def load(filename, all_headers=False):
     a = read_pickle(filename)
     data = a['data']
     raw_headers = a['headers']
@@ -37,7 +37,7 @@ def load(filename):
     }
     headers = {}
     for k, v in raw_headers:
-        if k in kept_headers:
+        if k in kept_headers or all_headers:
             headers[kept_headers[k]] = v
 
     return data, headers, url
