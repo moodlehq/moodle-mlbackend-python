@@ -509,6 +509,64 @@ def test_stashed_training_prediction(client):
         print(f"correct: {correct}/{len(answers)} == {accuracy}")
 
 
+def test_stashed_double_train(client):
+    train1 = os.path.join(HERE,
+                         'test-requests',
+                         'double-train-train.bz2'
+    )
+    train2 = os.path.join(HERE,
+                         'test-requests',
+                         'double-train-train2.bz2'
+    )
+    predict = os.path.join(HERE,
+                           'test-requests',
+                           'double-train-predict.bz2'
+    )
+
+    answer_file = os.path.join(HERE,
+                               'test-requests',
+                               'double-train-answers.bz2'
+    )
+
+    with bz2.open(answer_file) as f:
+        answers = json.load(f)
+
+    with post_real_data(client.post, train1) as resp:
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+        pprint(results)
+        resp_t2 = post_real_data_no_cleanup(client.post, train2)
+        assert resp_t2.status_code == 200
+        results = json.loads(resp_t2.data)
+        pprint(results)
+
+        resp_p = post_real_data_no_cleanup(client.post, predict)
+
+        assert resp_p.status_code == 200
+        results = json.loads(resp_p.data)
+        assert 'predictions' in results
+        predictions = results['predictions']
+        assert isinstance(predictions, list)
+        assert len(predictions) == len(answers)
+        correct = 0
+        for k, category, score in predictions:
+            correct += int(category) == answers[k]
+            assert isinstance(k, str)
+            assert category in ('0', '1')
+            assert 0.5 <= float(score) <= 1
+
+        accuracy = correct / len(answers)
+        assert accuracy > 0.8
+
+        # baseline is how good you could get by always saying 1 or 0,
+        # depending which is more common.
+        baseline = sum(answers.values())
+        baseline = max(baseline, len(answers) - baseline)
+        assert correct > baseline
+
+        print(f"correct: {correct}/{len(answers)} == {accuracy}")
+
+
 def test_training_prediction_evaluation(client):
     zipdata = _get_import_zip(n_hidden=10)
 
