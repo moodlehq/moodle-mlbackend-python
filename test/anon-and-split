@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Anonymise and split a stashed traiing request, storing some of it
+"""Anonymise and split a stashed training request, storing some of it
 as a training post and some as a prediction post.
 
 If the -t option is used, two training posts will be generated for the
