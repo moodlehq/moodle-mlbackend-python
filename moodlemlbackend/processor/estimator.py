@@ -278,11 +278,21 @@ class Classifier(Estimator):
     def find_invariant_columns(self, X):
         if self.variable_columns is not None:
             logging.warning("variable columns have already been found!")
+            logging.warning("removing them again would be trouble")
+            return
         self.variable_columns = np.nonzero(np.var(X, 0))[0]
 
     def train_dataset(self, filepath):
         """Train the model with the provided dataset"""
         X, self.y = self.get_labelled_samples(filepath)
+
+        # Load the loaded model if it exists.
+        if self.classifier_exists():
+            classifier = self.load_classifier()
+        else:
+            # Not previously trained.
+            classifier = False
+
         self.find_invariant_columns(X)
         self.X = self.remove_invariant_columns(X)
 
@@ -294,13 +304,6 @@ class Classifier(Estimator):
             result['errors'] = 'Training data needs to include ' + \
                 'samples belonging to all classes'
             return result
-
-        # Load the loaded model if it exists.
-        if self.classifier_exists():
-            classifier = self.load_classifier()
-        else:
-            # Not previously trained.
-            classifier = False
 
         trained_classifier = self.train(self.X, self.y, classifier)
 
