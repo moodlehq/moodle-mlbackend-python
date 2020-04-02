@@ -389,3 +389,49 @@ def split_dataset(dataset, predict_portion):
     return ('\n'.join(train).encode('utf8'),
             '\n'.join(predict).encode('utf8'),
             answers)
+
+
+def split_training_data(dataset, portion):
+    lines = dataset.decode('utf8').strip().split('\n')
+
+    pivot = int((len(lines) - 3) * portion) + 3
+
+    header = lines[:3]
+    train1 = lines[:pivot]
+    train2 = header + lines[pivot:]
+
+    return ('\n'.join(train1).encode('utf8'),
+            '\n'.join(train2).encode('utf8'))
+
+
+def split_training_request(datapickle, portion):
+    a = pickle.loads(datapickle)
+    boundary = get_boundary(a['headers'])
+    raw_data = a['data']
+    headers = a['headers']
+    url  = a['url']
+    parts = split_body(raw_data, boundary)
+    data_header, dataset = parts['dataset']
+
+
+    train1, train2  = split_training_data(dataset, portion)
+
+    parts['dataset'] = (data_header, train1)
+    data = reform_body(parts, boundary)
+    r = {
+        'url':   url,
+        'data':  data,
+        'headers': headers + [('Content-length', str(len(data)))]
+    }
+    pickle1 = pickle.dumps(r)
+
+    parts['dataset'] = (data_header, train2)
+    data = reform_body(parts, boundary)
+    r = {
+        'url':   url.replace('training', 'prediction'),
+        'data':  data,
+        'headers': headers + [('Content-length', str(len(data)))]
+    }
+    pickle2 = pickle.dumps(r)
+
+    return (pickle1, pickle2)
