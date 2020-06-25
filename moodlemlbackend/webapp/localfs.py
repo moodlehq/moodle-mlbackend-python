@@ -60,16 +60,16 @@ class LocalFS_setup_base_dir(object):
 
         if "MOODLE_MLBACKEND_PYTHON_DIR" not in os.environ:
             raise IOError(
-                'Set env MOODLE_MLBACKEND_PYTHON_DIR to an existing dir')
+                'Set the MOODLE_MLBACKEND_PYTHON_DIR environment variable '
+                'to a writeable MLBackend working directory.')
 
         localbasedir = os.environ["MOODLE_MLBACKEND_PYTHON_DIR"]
 
-        if not os.path.exists(localbasedir):
+        if not (os.path.isdir(localbasedir) and os.access(localbasedir, os.W_OK)):
             raise IOError(
-                'The base dir does not exist. ' +
-                'Set env MOODLE_MLBACKEND_PYTHON_DIR to an existing dir')
-
-        os.access(localbasedir, os.W_OK)
+                f'{localbasedir} is not a writeable directory.\n' +
+                'Set the MOODLE_MLBACKEND_PYTHON_DIR environment variable '
+                'to the MLBackend working directory.')
 
         storage.set_localbasedir(localbasedir)
 
