@@ -32,8 +32,17 @@ else:
 @app.route('/version', methods=['GET'])
 def version():
     here = os.path.abspath(os.path.dirname(__file__))
-    version_file = open(os.path.join(here, 'moodlemlbackend', 'VERSION'))
-    return version_file.read().strip()
+    # "./web-compat-version" is NOT in the git tree.
+    # If it exists, the version there is used; otherwise the true
+    # version is given. This allows versions with interchangeable APIs
+    # to be substituted for each other, allowing the ML-backend to be
+    # upgraded at a different cadence than Moodle itself.
+    # (Moodle makes a strict version check).
+    for fn in [os.path.join(here, 'web-compat-version'),
+               os.path.join(here, 'moodlemlbackend', 'VERSION')]:
+        if os.path.exists(fn):
+            with open(fn) as f:
+                return f.read().strip()
 
 
 @app.route('/training', methods=['POST'])
