@@ -162,11 +162,11 @@ def import_model():
 
     with get_file_path(storage.get_localbasedir(), 'importzip') as importzippath:
         with zipfile.ZipFile(importzippath, 'r') as zipobject:
-            importtempdir = tempfile.TemporaryDirectory()
-            zipobject.extractall(importtempdir.name)
+            with tempfile.TemporaryDirectory() as importtempdir:
+                zipobject.extractall(importtempdir)
 
-            classifier = estimator.Classifier(uniquemodelid, modeldir)
-            classifier.import_classifier(importtempdir.name)
+                classifier = estimator.Classifier(uniquemodelid, modeldir)
+                classifier.import_classifier(importtempdir)
 
     return 'Ok', 200
 
