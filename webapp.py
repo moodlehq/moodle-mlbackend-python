@@ -59,10 +59,9 @@ def training():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.train_dataset(datasetpath)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as dataset:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, dataset=dataset)
+        result = classifier.train_dataset(dataset)
 
     return json.dumps(result)
 
@@ -75,10 +74,9 @@ def prediction():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.predict_dataset(datasetpath)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as datasetpath:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
+        result = classifier.predict_dataset(datasetpath)
 
     return json.dumps(result)
 
@@ -95,8 +93,6 @@ def evaluation():
     maxdeviation = get_request_value('maxdeviation', pattern='[^0-9.$]')
     niterations = get_request_value('niterations', pattern='[^0-9$]')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
     trainedmodeldirhash = get_request_value(
         'trainedmodeldirhash', exception=False)
     if trainedmodeldirhash is not False:
@@ -108,12 +104,13 @@ def evaluation():
     else:
         trainedmodeldir = False
 
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.evaluate_dataset(datasetpath,
-                                         float(minscore),
-                                         float(maxdeviation),
-                                         int(niterations),
-                                         trainedmodeldir)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as datasetpath:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
+        result = classifier.evaluate_dataset(datasetpath,
+                                             float(minscore),
+                                             float(maxdeviation),
+                                             int(niterations),
+                                             trainedmodeldir)
 
     return json.dumps(result)
 
@@ -163,14 +160,13 @@ def import_model():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    importzippath = get_file_path(storage.get_localbasedir(), 'importzip')
+    with get_file_path(storage.get_localbasedir(), 'importzip') as importzippath:
+        with zipfile.ZipFile(importzippath, 'r') as zipobject:
+            importtempdir = tempfile.TemporaryDirectory()
+            zipobject.extractall(importtempdir.name)
 
-    with zipfile.ZipFile(importzippath, 'r') as zipobject:
-        importtempdir = tempfile.TemporaryDirectory()
-        zipobject.extractall(importtempdir.name)
-
-        classifier = estimator.Classifier(uniquemodelid, modeldir)
-        classifier.import_classifier(importtempdir.name)
+            classifier = estimator.Classifier(uniquemodelid, modeldir)
+            classifier.import_classifier(importtempdir.name)
 
     return 'Ok', 200
 
