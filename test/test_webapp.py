@@ -317,6 +317,13 @@ def _export_get(get, uniqueid='1', **kwargs):
     return get(url_for('export'), data=data, **kwargs)
 
 
+def test_server_tempfile(client): # NOTE: not using client.
+    with webapp.tempfile.TemporaryDirectory() as d:
+        assert os.path.dirname(d) == TEMP_DIR
+        assert os.path.isdir(d)
+    assert not os.path.exists(d)
+
+
 def test_version(client):
     resp = client.get(url_for('version'))
     assert resp.status_code == 200
