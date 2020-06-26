@@ -52,8 +52,11 @@ def gen_password_string():
 # the environment before importing webapp.
 
 DATA_DIR = os.path.join(HERE, 'temp-data')
+TEMP_DIR = os.path.join(HERE, 'temp-data/tmp')
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 os.environ["MOODLE_MLBACKEND_PYTHON_DIR"] = DATA_DIR
+os.environ["MOODLE_MLBACKEND_TEMPDIR"] = TEMP_DIR
 
 os.environ["MOODLE_MLBACKEND_PYTHON_USERS"] = gen_password_string()
 
