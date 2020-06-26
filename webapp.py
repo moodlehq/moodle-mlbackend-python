@@ -29,6 +29,12 @@ else:
     setup_base_dir = LocalFS_setup_base_dir
 
 
+# Set MOODLE_MLBACKEND_TEMPDIR to use something other than /tmp for
+# temporary storage.
+if "MOODLE_MLBACKEND_TEMPDIR" in os.environ:
+    tempfile.tempdir = os.environ['MOODLE_MLBACKEND_TEMPDIR']
+
+
 @app.route('/version', methods=['GET'])
 def version():
     here = os.path.abspath(os.path.dirname(__file__))
