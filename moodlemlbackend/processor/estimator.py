@@ -43,6 +43,24 @@ EXPORT_MODEL_FILENAME = 'model.json'
 TARGET_BATCH_SIZE = 1000
 
 
+def parse_nfeatures(n):
+    """Under NORMAL circumstances, n is an int, but if Moodle is unable to
+    decide how many columns there are, it concatenates a series of
+    integers together, joined by '|', like this:
+
+      474|474|474|474|474|474|474|474|473
+
+    It is difficult to know what to do here. The simplest thing is to
+    take the first number (on the assumption that that is the first
+    row, which is what np.genfromtxt() will use). The only slightly
+    correct answer is to use the maximum, because when values are
+    missing, we can't know where they are missing from, breaking the
+    alignment of the columns.
+    """
+    ns = n.split('|')
+    return int(ns[0])
+
+
 class Estimator(object):
     """Abstract estimator class"""
 
@@ -181,7 +199,7 @@ class Estimator(object):
                     return {
                         "n_classes": len(target_classes),
                         "classes": target_classes,
-                        "n_features": int(info_row[features_index])
+                        "n_features": parse_nfeatures(info_row[features_index])
                     }
 
     @staticmethod
