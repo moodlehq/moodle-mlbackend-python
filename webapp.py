@@ -192,9 +192,9 @@ def main():
     args = parser.parse_args()
 
     if not args.world_visible:
-        app.run(debug=True, port=args.port)
+        app.run(debug=args.debug_mode, port=args.port)
     else:
-        app.run(host='0.0.0.0', port=args.port)
+        app.run(debug=args.debug_mode, host='0.0.0.0', port=args.port)
 
 
 if __name__ == '__main__':
