@@ -22,8 +22,12 @@ except OSError as e:
     print(e)
     parser.print_usage()
 
-path = orig_url.rsplit('/', 1)[1]
-url = f'{rgs.url}/{path}'
+if '/' in orig_url:
+    path = orig_url.rsplit('/', 1)[1]
+else:
+    path = orig_url
+
+url = f'{args.remote_url}/{path}'
 
 user = input("username")
 password = getpass(f"password for {user}: ")
