@@ -20,7 +20,8 @@ import joblib
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_curve, auc
-from sklearn.metrics import f1_score, recall_score, precision_score, accuracy_score
+from sklearn.metrics import f1_score, recall_score, precision_score
+from sklearn.metrics import accuracy_score, balanced_accuracy_score
 from sklearn.utils import shuffle
 import tensorflow as tf
 
@@ -100,6 +101,9 @@ class Estimator(object):
 
         classifier = joblib.load(classifier_filepath)
         self.variable_columns = getattr(classifier, 'variable_columns', None)
+        path = os.path.join(model_dir, 'model.ckpt')
+        classifier.load(path)
+
         return classifier
 
     def store_classifier(self, trained_classifier):
@@ -183,25 +187,13 @@ class Estimator(object):
     @staticmethod
     def check_classes_balance(counts):
         """Checks that the dataset contains enough samples of each class"""
-        for item1 in counts:
-            for item2 in counts:
-                if item1 > (item2 * 3):
-                    return 'Provided classes are very unbalanced, ' + \
-                        'predictions may not be accurate.'
-        return False
-
-    @staticmethod
-    def limit_value(value, lower_bounds, upper_bounds):
-        """Limits the value by lower and upper boundaries"""
-        if value < (lower_bounds - 1):
-            return lower_bounds
-        elif value > (upper_bounds + 1):
-            return upper_bounds
-        else:
-            return value
+        if max(counts) > min(counts) * 3:
+            return ('Provided classes are very unbalanced, '
+                    'predictions may not be accurate.')
 
     def reset_metrics(self):
         """Resets the class metrics"""
+        self.baccuracies = []
         self.accuracies = []
         self.precisions = []
         self.recalls = []
@@ -225,10 +217,7 @@ class Classifier(Estimator):
             self.is_binary = self.n_classes == 2
 
         self.tensor_logdir = self.get_tensor_logdir()
-        if os.path.isdir(self.tensor_logdir) is False:
-            if os.makedirs(self.tensor_logdir) is False:
-                raise OSError('Directory ' + self.tensor_logdir +
-                              ' can not be created.')
+        os.makedirs(self.tensor_logdir, exist_ok=True)
 
     def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
@@ -244,20 +233,20 @@ class Classifier(Estimator):
         n_batches = min(n_batches, 10)
         batch_size = (n_rows + n_batches - 1) // n_batches
 
-        # We need ~10,000 iterations so that the 0.5 learning rate decreases
-        # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
-        # algorithm has some time to finish the training on lr < 0.01.
-        starter_learning_rate = 0.5
-        n_epoch = (12000 * batch_size + n_rows - 1) // n_rows
+        # the number of epochs can be smaller if we have a large
+        # number of samples. On the other hand it must also be small
+        # if we have very few samples, or the model will overfit. What
+        # we can say is that with larger batches we need more epochs.
+        n_epoch = 40 + batch_size // 20
 
         n_classes = self.n_classes
         n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
-                         starter_learning_rate, self.get_tensor_logdir(),
+                         self.get_tensor_logdir(),
                          initial_weights=initial_weights)
 
-    def train(self, X_train, y_train, classifier=False):
+    def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
 
         if classifier is False:
@@ -265,8 +254,8 @@ class Classifier(Estimator):
             classifier = self.get_classifier(X_train, y_train)
 
         # Fit the training set. y should be an array-like.
-        classifier.fit(X_train, y_train[:, 0])
-
+        classifier.fit(X_train, y_train[:, 0], log_run=log_run)
+        self.store_classifier(classifier)
         # Returns the trained classifier.
         return classifier
 
@@ -332,7 +321,7 @@ class Classifier(Estimator):
         y_proba = classifier.predict_proba(x)
         y_pred = classifier.predict(x)
         # Probabilities of the predicted response being correct.
-        probabilities = y_proba[range(len(y_proba)), y_pred]
+        probabilities = y_proba[np.arange(len(y_proba)), y_pred]
 
         result = dict()
         result['status'] = OK
@@ -368,7 +357,7 @@ class Classifier(Estimator):
 
         logging.info('Number of samples by y value: %s', str(counts))
         balanced_classes = self.check_classes_balance(counts)
-        if balanced_classes is not False:
+        if balanced_classes:
             logging.warning(balanced_classes)
 
         # Check that we have samples belonging to all classes.
@@ -389,7 +378,7 @@ class Classifier(Estimator):
 
         else:
             # Evaluate the model by training the ML algorithm multiple times.
-            for _ in range(0, n_test_runs):
+            for i in range(n_test_runs):
                 # Split samples into training set and test set (80% - 20%)
                 X_train, X_test, y_train, y_test = train_test_split(self.X,
                                                                     self.y,
@@ -399,7 +388,8 @@ class Classifier(Estimator):
                     # tensor.
                     continue
 
-                classifier = self.train(X_train, y_train)
+                log_run = i == 0
+                classifier = self.train(X_train, y_train, log_run=log_run)
 
                 self.rate_prediction(classifier, X_test, y_test)
 
@@ -464,8 +454,9 @@ class Classifier(Estimator):
                 pass
 
         # Calculate accuracy, sensitivity and specificity.
-        [acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
+        [bacc, acc, prec, rec, f1score] = self.calculate_metrics(y_test, y_pred)
 
+        self.baccuracies.append(bacc)
         self.accuracies.append(acc)
         self.precisions.append(prec)
         self.recalls.append(rec)
@@ -486,6 +477,7 @@ class Classifier(Estimator):
         """Calculates the accuracy metrics"""
 
         accuracy = accuracy_score(y_test, y_pred)
+        baccuracy = balanced_accuracy_score(y_test, y_pred)
 
         # Wrapping all the scoring function calls in a try & except to prevent
         # the following warning to result in a "TypeError: warnings_to_log()
@@ -497,11 +489,12 @@ class Classifier(Estimator):
         recall = recall_score(y_test, y_pred, average='weighted')
         f1score = f1_score(y_test, y_pred, average='weighted')
 
-        return [accuracy, precision, recall, f1score]
+        return [baccuracy, accuracy, precision, recall, f1score]
 
     def get_evaluation_results(self, min_score, accepted_deviation):
         """Returns the evaluation results after all iterations"""
 
+        avg_baccuracy = np.mean(self.baccuracies)
         avg_accuracy = np.mean(self.accuracies)
         avg_precision = np.mean(self.precisions)
         avg_recall = np.mean(self.recalls)
@@ -524,6 +517,7 @@ class Classifier(Estimator):
                 result['auc_deviation'] = 1.0
                 pass
 
+        result['balanced accuracy'] = avg_baccuracy
         result['accuracy'] = avg_accuracy
         result['precision'] = avg_precision
         result['recall'] = avg_recall
@@ -564,18 +558,11 @@ class Classifier(Estimator):
         """Stores the classifier and saves a checkpoint of the tensors state"""
 
         # Store the graph state.
-        saver = tf.train.Saver(save_relative_paths=True)
-        sess = trained_classifier.get_session()
-
         path = os.path.join(self.persistencedir, 'model.ckpt')
-        saver.save(sess, path)
-
-        # Also save it to the logs dir to see the embeddings.
+        trained_classifier.save(path)
         path = os.path.join(self.get_tensor_logdir(), 'model.ckpt')
-        saver.save(sess, path)
-
-        # Save the class data.
-        super(Classifier, self).store_classifier(trained_classifier)
+        trained_classifier.save(path)
+        super().store_classifier(trained_classifier)
 
     def load_classifier(self, model_dir=False):
         """Loads a previously trained classifier and restores its state"""
@@ -587,10 +574,6 @@ class Classifier(Estimator):
 
         classifier.set_tensor_logdir(self.get_tensor_logdir())
 
-        # Now restore the graph state.
-        saver = tf.train.Saver(save_relative_paths=True)
-        path = os.path.join(model_dir, 'model.ckpt')
-        saver.restore(classifier.get_session(), path)
         return classifier
 
     def export_classifier(self, exporttmpdir):
@@ -609,8 +592,8 @@ class Classifier(Estimator):
             export_vars[var.op.name] = var.eval(sess).tolist()
 
         # Append the number of features.
-        export_vars['n_features'] = classifier.get_n_features()
-        export_vars['n_classes'] = classifier.get_n_classes()
+        export_vars['n_features'] = classifier.n_features
+        export_vars['n_classes'] = classifier.n_classes
 
         vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
         with open(vars_file_path, 'w') as vars_file:

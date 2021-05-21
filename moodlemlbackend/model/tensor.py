@@ -1,6 +1,5 @@
 """Tensorflow classifier"""
 
-import math
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -10,56 +9,30 @@ import numpy as np
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
+MODEL_DTYPE = 'float32'
 
 class TF(object):
     """Tensorflow classifier"""
 
     def __init__(self, n_features, n_classes, n_epoch, batch_size,
-                 starter_learning_rate, tensor_logdir, initial_weights=False):
+                 tensor_logdir, initial_weights=False):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
-        self.starter_learning_rate = starter_learning_rate
         self.n_features = n_features
 
         # Based on the number of features although we need a reasonable
         # minimum.
         self.n_hidden = max(4, int(n_features / 3))
+        self.n_hidden_layers = 2
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
-        self.x = None
-        self.y_ = None
-        self.y = None
-        self.probs = None
-        self.loss = None
-
         self.build_graph(initial_weights)
-
-        self.start_session()
-
-        # During evaluation we process the same dataset multiple times,
-        # could could store each run result to the user but results would
-        # be very similar we only do it once making it simplier to
-        # understand and saving disk space.
-        if os.listdir(self.tensor_logdir) == []:
-            self.log_run = True
-            self.init_logging()
-        else:
-            self.log_run = False
 
     def __getstate__(self):
         state = self.__dict__.copy()
-        del state['x']
-        del state['y_']
-        del state['y']
-        del state['probs']
-        del state['train_step']
-        del state['sess']
-
-        del state['file_writer']
-        del state['merged']
-
+        del state['model']
         # We also remove this as it depends on the run.
         del state['tensor_logdir']
 
@@ -68,7 +41,6 @@ class TF(object):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self.build_graph()
-        self.start_session()
 
     def set_tensor_logdir(self, tensor_logdir):
         """Sets tensorflow logs directory
@@ -77,166 +49,80 @@ class TF(object):
         run, it can not be restored."""
 
         self.tensor_logdir = tensor_logdir
-        try:
-            self.file_writer
-            self.merged
-        except AttributeError:
-            # Init logging if logging vars are not defined.
-            self.init_logging()
 
     def build_graph(self, initial_weights=False):
         """Builds the computational graph without feeding any data in"""
         tf.compat.v1.reset_default_graph()
+        tf.keras.backend.clear_session()
+        inputs = tf.keras.Input(shape=(self.n_features,), dtype=MODEL_DTYPE)
+        prev = inputs
+        for i in range(self.n_hidden_layers):
+            h = tf.keras.layers.Dense(self.n_hidden,
+                                      name=f'hidden_{i+1}',
+                                      activation=tf.nn.relu,
+                                      dtype=MODEL_DTYPE)(prev)
+            prev = h
+        outputs = tf.keras.layers.Dense(self.n_classes,
+                                        activation=tf.nn.softmax,
+                                        dtype=MODEL_DTYPE)(prev)
 
-        # Placeholders for input values.
-        with tf.name_scope('inputs'):
-            self.x = tf.placeholder(
-                tf.float32, [None, self.n_features], name='x')
-            self.y_ = tf.placeholder(
-                tf.float32, [None, self.n_classes], name='dataset-y')
+        self.model = tf.keras.Model(inputs=inputs, outputs=outputs)
+        self.compile()
 
-        # Variables for computed stuff, we need to initialise them now.
-        with tf.name_scope('initialise-vars'):
+    def compile(self):
+        self.model.compile(
+            optimizer='rmsprop',
+            loss='categorical_crossentropy',
+            metrics=['CategoricalAccuracy',
+                     tf.keras.metrics.AUC()],
+        )
 
-            if initial_weights is False:
-                initial_w_hidden = tf.random_normal(
-                    [self.n_features, self.n_hidden], dtype=tf.float32)
-                initial_w_output = tf.random_normal(
-                    [self.n_hidden, self.n_classes], dtype=tf.float32)
-                initial_b_hidden = tf.random_normal(
-                    [self.n_hidden], dtype=tf.float32)
-                initial_b_output = tf.random_normal(
-                    [self.n_classes], dtype=tf.float32)
-            else:
-                initial_w_hidden = np.float32(
-                    initial_weights['initialise-vars/input-to-hidden-weights'])
-                initial_w_output = np.float32(
-                    initial_weights['initialise-vars/hidden-to-output-weights'])
-                initial_b_hidden = np.float32(
-                    initial_weights['initialise-vars/hidden-bias'])
-                initial_b_output = np.float32(
-                    initial_weights['initialise-vars/output-bias'])
+    def save(self, path):
+        self.model.save(path)
 
-            W = {
-                'input-hidden': tf.Variable(initial_w_hidden,
-                                            name='input-to-hidden-weights'),
-                'hidden-output': tf.Variable(initial_w_output,
-                                             name='hidden-to-output-weights'),
-            }
+    def load(self, path):
+        self.model = tf.keras.models.load_model(path)
+        self.compile()
 
-            b = {
-                'input-hidden': tf.Variable(initial_b_hidden,
-                                            name='hidden-bias'),
-                'hidden-output': tf.Variable(initial_b_output,
-                                             name='output-bias'),
-            }
-
-        # Predicted y.
-        with tf.name_scope('loss'):
-            hidden = tf.tanh(tf.matmul(
-                self.x, W['input-hidden']) + b['input-hidden'],
-                name='activation-function')
-
-            self.probs = tf.matmul(
-                hidden, W['hidden-output']) + b['hidden-output']
-            tf.summary.histogram('predicted_values', self.probs)
-            self.y = tf.nn.softmax(self.probs)
-            tf.summary.histogram('activations', self.y)
-
-            loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits_v2(
-                logits=self.probs, labels=self.y_))
-
-            regularizer = (tf.nn.l2_loss(W['input-hidden']) * 0.01) + \
-                (tf.nn.l2_loss(W['hidden-output']) * 0.01)
-            loss = tf.reduce_mean(loss + regularizer)
-
-            tf.summary.scalar("loss", loss)
-
-        with tf.name_scope('accuracy'):
-            correct_prediction = tf.equal(
-                tf.argmax(self.y, 1), tf.argmax(self.y_, 1))
-            accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        tf.summary.scalar('accuracy', accuracy)
-
-        # Calculate decay_rate.
-        global_step = tf.Variable(0, trainable=False, name='global-step')
-        learning_rate = tf.train.exponential_decay(
-            self.starter_learning_rate, global_step,
-            100, 0.96, staircase=False)
-        tf.summary.scalar("learning_rate", learning_rate)
-
-        self.train_step = tf.train.GradientDescentOptimizer(
-            learning_rate).minimize(loss, global_step=global_step)
-
-    def start_session(self):
-        """Starts the session"""
-
-        self.sess = tf.Session()
-
-        init = tf.global_variables_initializer()
-        self.sess.run(init)
-
-    def init_logging(self):
-        """Starts logging the tensors state"""
-        self.file_writer = tf.summary.FileWriter(
-            self.tensor_logdir, self.sess.graph)
-        self.merged = tf.summary.merge_all()
-
-    def get_session(self):
-        """Return the session"""
-        return self.sess
-
-    def get_n_features(self):
-        """Return the number of features"""
-        return self.n_features
-
-    def get_n_classes(self):
-        """Return the number of features"""
-        return self.n_classes
-
-    def fit(self, X, y):
-        """Fits provided data into the session"""
-
-        n_examples, _ = X.shape
-
-        # 1 column per value so will be easier later to make this
-        # work with multiple classes.
+    def fit(self, X, y, log_run=True):
+        """Fit the model to the provided data"""
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
         y = y.astype(np.float32)
 
-        # floats division otherwise we get 0 if n_examples is lower than the
-        # batch size and minimum 1 iteration.
-        iterations = int(math.ceil(n_examples / self.batch_size))
+        kwargs = {}
+        if log_run:
+            cb = tf.compat.v1.keras.callbacks.TensorBoard(
+                log_dir=self.tensor_logdir,
+                #histogram_freq=1,
+                #write_graph=True,
+                #write_grads=True,
+                write_images=True,
+            )
+            kwargs['callbacks'] = [cb]
 
-        index = 0
-        for _ in range(self.n_epoch):
-            for j in range(iterations):
+        history = self.model.fit(X, y,
+                                 self.batch_size,
+                                 self.n_epoch,
+                                 verbose=2,
+                                 validation_split=0.1,  # XXX
+                                 **kwargs
+        )
 
-                offset = j * self.batch_size
-                it_end = offset + self.batch_size
-                if it_end > n_examples:
-                    it_end = n_examples - 1
+        # The history.history dict contains lists of numpy.float64
+        # values which don't work well with json. We need to turn them
+        # into floats.
+        ret = {}
+        for k, v in history.history.items():
+            ret[k] = [float(x) for x in v]
 
-                batch_xs = X[offset:it_end]
-                batch_ys = y[offset:it_end]
-
-                if self.log_run:
-                    _, summary = self.sess.run([self.train_step, self.merged],
-                                               {self.x: batch_xs,
-                                                self.y_: batch_ys})
-                    # Add the summary data to the file writer.
-                    self.file_writer.add_summary(summary, index)
-                else:
-                    self.sess.run(self.train_step,
-                                  {self.x: batch_xs, self.y_: batch_ys})
-
-                index = index + 1
+        return ret
 
     def predict(self, x):
         """Find the index of the most probable class."""
-        return self.sess.run(tf.argmax(self.y, 1), {self.x: x})
+        y = self.model.predict(x)
+        return tf.keras.backend.eval(tf.argmax(y, 1))
 
     def predict_proba(self, x):
         """Find the probability distribution over all classes."""
-        return self.sess.run(tf.concat(self.y, 1), {self.x: x})
+        return self.model.predict(x)

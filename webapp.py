@@ -169,5 +169,22 @@ def deletemodel():
     return 'Ok', 200
 
 
+def main():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--world-visible', action='store_true',
+                        help='Allow connections from beyond localhost')
+    parser.add_argument('-p', '--port', default=5000, type=int,
+                        help='listen on this port')
+    parser.add_argument('--debug-mode', action='store_true',
+                        help='enable debug features (unsafe in production)')
+    args = parser.parse_args()
+
+    if not args.world_visible:
+        app.run(debug=True, port=args.port)
+    else:
+        app.run(host='0.0.0.0', port=args.port)
+
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0')
+    main()
