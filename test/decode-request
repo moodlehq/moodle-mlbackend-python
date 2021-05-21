@@ -95,7 +95,7 @@ for k, v in parts.items():
         print()
         print(f'\033[01;33mvariance\033[00m')
 
-        samples = np.genfromtxt(lines,
+        samples = np.genfromtxt([x.encode('utf-8') for x in lines],
                                 delimiter=',',
                                 dtype=np.float32,
                                 skip_header=3,

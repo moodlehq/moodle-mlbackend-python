@@ -1,0 +1,38 @@
+#!/usr/bin/python3
+
+import sys
+import stash
+import argparse
+from pprint import pprint
+import requests
+from getpass import getpass
+
+
+parser = argparse.ArgumentParser(description='Replay a stashed request')
+parser.add_argument('-u', '--remote-url', default='http://127.0.0.1:5000',
+                    help='remote server base url')
+parser.add_argument('file',
+                    help='file to replay')
+args = parser.parse_args()
+
+
+try:
+    data, headers, orig_url = stash.load(args.file, all_headers=True)
+except OSError as e:
+    print(e)
+    parser.print_usage()
+
+path = orig_url.rsplit('/', 1)[1]
+url = f'{rgs.url}/{path}'
+
+user = input("username")
+password = getpass(f"password for {user}: ")
+
+
+r = requests.post(url,
+                  data=data,
+                  headers=headers,
+                  auth=(user, password))
+
+assert r.status_code == 200
+

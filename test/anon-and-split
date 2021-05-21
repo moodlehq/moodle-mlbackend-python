@@ -1,19 +1,26 @@
 #!/usr/bin/python3
-"""Anonymise and split a stashed traiing request, storing some of it
+"""Anonymise and split a stashed training request, storing some of it
 as a training post and some as a prediction post.
+
+If the -t option is used, two training posts will be generated for the
+same model.
 
 The answers are saved in a third file.
 """
+
 import bz2
 import sys
 import stash
 import argparse
+
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('-b', '--basename',
                     help='base name for the various files')
 parser.add_argument('-p', '--predict-portion', default=0.1, type=float,
                     help='how many items go in the predict post')
+parser.add_argument('-t', '--second-train-portion', type=float,
+                    help='how many items go in the second train post')
 parser.add_argument('-s', '--seed', type=lambda x: x.encode('utf-8'),
                     help='random seed to shuffle data (default: the uniqueid)')
 parser.add_argument('-j', '--bzip2', action='store_true',
@@ -22,13 +29,25 @@ parser.add_argument('file',
                     help='file to anonymize and split')
 args = parser.parse_args()
 
+
 train, predict, answers = stash.anonymize_and_split(args.file,
                                                     args.predict_portion,
                                                     seed=args.seed)
 
+if args.second_train_portion is None:
+    train2 = None
+if args.second_train_portion is not None:
+    # rephrase fraction as a fraction of training remnant
+    portion = args.second_train_portion / (1.0 - args.predict_portion)
+    train, train2 = stash.split_training_request(train, portion)
+
+
 for name, data in [('train', train),
+                   ('train2', train2),
                    ('predict', predict),
                    ('answers', answers)]:
+    if data is None:
+        continue
 
     if args.bzip2:
         fn = f'{args.basename}-{name}.bz2'

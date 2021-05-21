@@ -1,12 +1,49 @@
 #!/usr/bin/python3
-from subprocess import run
+"""A script to measure performance of various commits.
+
+USAGE: ./test/time-commits REF [REF [REF [...]]]
+
+where REF is a git commit hash, tag, or branch.
+
+This runs the 'stashed_evaluation_long' test on the commits listed and
+prints statistics about how well each did.
+
+For example:
+
+$ ./test/time-commits keras-one-layer
+
+keras-one-layer
+Switched to branch 'keras-one-layer'
+b''
+score                0.918
+precision            0.921
+recall               0.917
+score_deviation      0.00262
+accuracy             0.917
+duration:           67.46
+
+The test as defined in `test/test_webapp.py` in the latest commit is
+used. That is, if you go:
+
+[edit test/test_webapp.py]
+$ git add test/test_webapp.py
+$ git commit -mtest
+$ ./test/time-commits old-commit older-commit
+
+"old-commit" and "older-commit" will be tested as if they had the
+latest test_webapp.py.
+"""
+
+from subprocess import run, CalledProcessError
 import re
 import sys
 import os
 
+SLOW_TESTS = "MOODLE_MLBACKEND_RUN_SLOW_TESTS"
+
 # This environment variable tells test_webapp to allow the slow tests,
 # which is what we want for timing purposes.
-os.environ["MOODLE_MLBACKEND_RUN_SLOW_TESTS"] = '1'
+os.environ[SLOW_TESTS] = '1'
 
 # This one makes the tests use the old style plaintext password string,
 # which not all commits might have.
@@ -41,13 +78,20 @@ def checkout_test(b=TEST_WEBAPP_COMMIT):
 
 
 def run_test():
-    p = run(PYTEST + ['-k', TEST],
-            capture_output=True,
-            check=True)
+    try:
+        p = run(PYTEST + ['-k', TEST],
+                capture_output=True,
+                check=True)
+    except CalledProcessError as e:
+        print(e.output.decode('utf8'))
+        print(e)
+        print(f'{SLOW_TESTS}=1 {" ".join(e.cmd)}')
+        return
 
     out = p.stdout.decode('utf8')
-    print(p.stderr)
-    for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy']:
+
+    for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy',
+                   'balanced accuracy']:
         m = re.search(r"'%s': (\d+\.?\d+)" % (metric,), out)
         if m is None:
             print(f"{metric} is missing")
@@ -82,9 +126,18 @@ def current_ref():
 
 
 def main():
+    args = sys.argv[1:]
+    if not args or '-h' in args or '--help' in args:
+        print(__doc__)
+        sys.exit()
+
+    if args in (['-w'], ['--working-tree']):
+        run_test()
+        sys.exit()
+
     original_ref = current_ref()
     try:
-        for commit in sys.argv[1:]:
+        for commit in args:
             print()
             print(commit)
             checkout_branch(commit)
