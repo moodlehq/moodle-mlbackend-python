@@ -86,34 +86,35 @@ class TF(object):
 
     def build_graph(self, initial_weights=False):
         """Builds the computational graph without feeding any data in"""
+        tf.compat.v1.reset_default_graph()
 
         # Placeholders for input values.
         with tf.name_scope('inputs'):
             self.x = tf.placeholder(
-                tf.float64, [None, self.n_features], name='x')
+                tf.float32, [None, self.n_features], name='x')
             self.y_ = tf.placeholder(
-                tf.float64, [None, self.n_classes], name='dataset-y')
+                tf.float32, [None, self.n_classes], name='dataset-y')
 
         # Variables for computed stuff, we need to initialise them now.
         with tf.name_scope('initialise-vars'):
 
             if initial_weights is False:
                 initial_w_hidden = tf.random_normal(
-                    [self.n_features, self.n_hidden], dtype=tf.float64)
+                    [self.n_features, self.n_hidden], dtype=tf.float32)
                 initial_w_output = tf.random_normal(
-                    [self.n_hidden, self.n_classes], dtype=tf.float64)
+                    [self.n_hidden, self.n_classes], dtype=tf.float32)
                 initial_b_hidden = tf.random_normal(
-                    [self.n_hidden], dtype=tf.float64)
+                    [self.n_hidden], dtype=tf.float32)
                 initial_b_output = tf.random_normal(
-                    [self.n_classes], dtype=tf.float64)
+                    [self.n_classes], dtype=tf.float32)
             else:
-                initial_w_hidden = np.float64(
+                initial_w_hidden = np.float32(
                     initial_weights['initialise-vars/input-to-hidden-weights'])
-                initial_w_output = np.float64(
+                initial_w_output = np.float32(
                     initial_weights['initialise-vars/hidden-to-output-weights'])
-                initial_b_hidden = np.float64(
+                initial_b_hidden = np.float32(
                     initial_weights['initialise-vars/hidden-bias'])
-                initial_b_output = np.float64(
+                initial_b_output = np.float32(
                     initial_weights['initialise-vars/output-bias'])
 
             W = {
@@ -202,6 +203,7 @@ class TF(object):
         # work with multiple classes.
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
+        y = y.astype(np.float32)
 
         # floats division otherwise we get 0 if n_examples is lower than the
         # batch size and minimum 1 iteration.
@@ -232,9 +234,9 @@ class TF(object):
                 index = index + 1
 
     def predict(self, x):
-        """Returns predictions"""
+        """Find the index of the most probable class."""
         return self.sess.run(tf.argmax(self.y, 1), {self.x: x})
 
     def predict_proba(self, x):
-        """Returns predicted probabilities"""
-        return self.sess.run(self.probs, {self.x: x})
+        """Find the probability distribution over all classes."""
+        return self.sess.run(tf.concat(self.y, 1), {self.x: x})

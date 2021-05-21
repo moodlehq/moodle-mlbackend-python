@@ -1,0 +1,121 @@
+#!/usr/bin/python3
+import pickle, sys
+from pprint import pprint
+from collections import Counter
+from io import BytesIO
+import argparse
+import json
+
+import numpy as np
+
+from stash import read_pickle, get_boundary, split_body
+
+parser = argparse.ArgumentParser(description='Anonymise a stashed request')
+parser.add_argument('-C', '--column-names', action='store_true',
+                    help='show column names')
+parser.add_argument('-H', '--http-headers', action='store_true',
+                    help='show http headers')
+parser.add_argument('-R', '--data-rows', const=2, type=int, nargs='?',
+                    help='show n rows of data')
+parser.add_argument('-V', '--column-variance', action='store_true',
+                    help='show column variance')
+parser.add_argument('-J', '--to-json', action='store_true',
+                    help='output the pickle as json and exit')
+parser.add_argument('file',
+                    help='file to anonymize')
+args = parser.parse_args()
+
+a = read_pickle(args.file)
+
+if args.to_json:
+    a['data'] = a['data'].decode('utf8')
+    json.dump(a, sys.stdout, indent='  ')
+    sys.exit()
+
+data = a['data']
+headers = a['headers']
+url = a['url']
+
+if args.http_headers:
+    print(f'\033[01;33mhttp headers\033[00m')
+    pprint(headers)
+    print()
+
+boundary = get_boundary(headers)
+parts = split_body(data, boundary)
+
+for k, v in parts.items():
+    h2, body = v
+    print(f'\033[01;31m{k}\033[00m')
+    pprint(h2)
+    print()
+
+    cd = h2.get('Content-Disposition')
+    if cd and cd.get('name') == '"dataset"':
+        import csv
+        lines = body.decode('utf8').split('\n')
+        while ',' not in lines[-1]:
+            lines.pop()
+
+        c = csv.reader(lines)
+
+        mkeys = next(c)
+        mvals = next(c)
+        meta = dict(zip(mkeys, mvals))
+        print(f'\033[01;33mmetadata\033[00m')
+        for k, v in meta.items():
+            print(f"{k:<20} {v}")
+        cols = next(c)
+        lengths = Counter()
+        for line in c:
+            lengths[len(line)] += 1
+
+        print()
+        print(f'\033[01;33mdimensions\033[00m')
+        print(f"labeled columns: {len(cols)}")
+        for nc, nr in lengths.most_common():
+            print(f"{nr:6} rows with {nc} columns")
+
+        if len(cols) != len(set(cols)):
+            for c in cols:
+                if c not in set(cols):
+                    print(f'\033[01;31mduplicate column\033[00m: {c}')
+
+        if args.column_names:
+            print()
+            print(f'\033[01;33mcolumn names\033[00m')
+            for c in sorted(cols):
+                print(f'   {c}')
+
+        if args.data_rows:
+            print()
+            print(f'\033[01;33mdata rows (last {args.data_rows})\033[00m')
+            pprint(lines[-args.data_rows:])
+
+        print()
+        print(f'\033[01;33mvariance\033[00m')
+
+        samples = np.genfromtxt(lines,
+                                delimiter=',',
+                                dtype=np.float32,
+                                skip_header=3,
+                                missing_values='',
+                                filling_values=0)
+
+        variable_samples = np.nonzero(np.var(samples, 0))[0]
+
+        rows, width = samples[:,variable_samples].shape
+        print(f"{width} variable columns")
+
+        if args.column_variance:
+            print()
+            print(np.var(samples, 0))
+            print()
+            print('index of columns with no-zero variance')
+            print(variable_samples)
+
+
+
+    else:
+        print(body)
+    print()

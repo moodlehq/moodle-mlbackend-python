@@ -39,6 +39,8 @@ NOT_ENOUGH_DATA = 8
 PERSIST_FILENAME = 'classifier.pkl'
 EXPORT_MODEL_FILENAME = 'model.json'
 
+TARGET_BATCH_SIZE = 1000
+
 
 class Estimator(object):
     """Abstract estimator class"""
@@ -47,6 +49,7 @@ class Estimator(object):
 
         self.X = None
         self.y = None
+        self.variable_columns = None
 
         self.modelid = modelid
 
@@ -94,10 +97,14 @@ class Estimator(object):
 
         classifier_filepath = os.path.join(
             model_dir, PERSIST_FILENAME)
-        return joblib.load(classifier_filepath)
+
+        classifier = joblib.load(classifier_filepath)
+        self.variable_columns = getattr(classifier, 'variable_columns', None)
+        return classifier
 
     def store_classifier(self, trained_classifier):
         """Stores the provided classifier"""
+        trained_classifier.variable_columns = self.variable_columns
         classifier_filepath = os.path.join(
             self.persistencedir, PERSIST_FILENAME)
         joblib.dump(trained_classifier, classifier_filepath)
@@ -107,9 +114,9 @@ class Estimator(object):
         """Extracts labelled samples from the provided data file"""
 
         # We skip 3 rows of metadata.
-        samples = np.genfromtxt(filepath, delimiter=',', dtype='float',
+        samples = np.genfromtxt(filepath, delimiter=',', dtype=np.float32,
                                 skip_header=3, missing_values='',
-                                filling_values=False)
+                                filling_values=0.0)
         samples = shuffle(samples)
 
         # This is a single sample dataset, genfromtxt returns the samples
@@ -139,7 +146,7 @@ class Estimator(object):
         # We don't know the number of columns, we can only get them all and
         # discard the first one.
         samples = np.genfromtxt(filepath, delimiter=',',
-                                dtype=float, skip_header=3,
+                                dtype=np.float32, skip_header=3,
                                 missing_values='', filling_values=False)
 
         # This is a single sample dataset, genfromtxt returns the samples
@@ -233,28 +240,18 @@ class Classifier(Estimator):
             # n_rows value does not really matter during import.
             n_rows = 1
 
-        if n_rows < 1000:
-            batch_size = n_rows
-        else:
-            # A min batch size of 1000.
-            x_tenpercent = int(n_rows / 10)
-            batch_size = max(1000, x_tenpercent)
+        n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
+        n_batches = min(n_batches, 10)
+        batch_size = (n_rows + n_batches - 1) // n_batches
 
         # We need ~10,000 iterations so that the 0.5 learning rate decreases
         # to 0.01 with a decay rate of 0.96. We use 12,000 so that the
         # algorithm has some time to finish the training on lr < 0.01.
         starter_learning_rate = 0.5
-        if n_rows > batch_size:
-            n_epoch = int(12000 / (n_rows / batch_size))
-        else:
-            # Less than 1000 rows (1000 is the minimum batch size we defined).
-            # We don't need to iterate than many times if we have less than
-            # 1000 records, starting with 0.5 the learning rate will get to
-            # ~0.05 in 5000 epochs.
-            n_epoch = 5000
+        n_epoch = (12000 * batch_size + n_rows - 1) // n_rows
 
         n_classes = self.n_classes
-        n_features = self.n_features
+        n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          starter_learning_rate, self.get_tensor_logdir(),
@@ -273,9 +270,31 @@ class Classifier(Estimator):
         # Returns the trained classifier.
         return classifier
 
+    def remove_invariant_columns(self, X):
+        if self.variable_columns is None:
+            return X
+        return X[:,self.variable_columns]
+
+    def find_invariant_columns(self, X):
+        if self.variable_columns is not None:
+            logging.warning("variable columns have already been found!")
+            logging.warning("removing them again would be trouble")
+            return
+        self.variable_columns = np.nonzero(np.var(X, 0))[0]
+
     def train_dataset(self, filepath):
         """Train the model with the provided dataset"""
-        [self.X, self.y] = self.get_labelled_samples(filepath)
+        X, self.y = self.get_labelled_samples(filepath)
+
+        # Load the loaded model if it exists.
+        if self.classifier_exists():
+            classifier = self.load_classifier()
+        else:
+            # Not previously trained.
+            classifier = False
+
+        self.find_invariant_columns(X)
+        self.X = self.remove_invariant_columns(X)
 
         if len(np.unique(self.y)) < self.n_classes:
             # We need samples belonging to all different classes.
@@ -285,13 +304,6 @@ class Classifier(Estimator):
             result['errors'] = 'Training data needs to include ' + \
                 'samples belonging to all classes'
             return result
-
-        # Load the loaded model if it exists.
-        if self.classifier_exists():
-            classifier = self.load_classifier()
-        else:
-            # Not previously trained.
-            classifier = False
 
         trained_classifier = self.train(self.X, self.y, classifier)
 
@@ -315,6 +327,7 @@ class Classifier(Estimator):
 
         classifier = self.load_classifier()
 
+        x = self.remove_invariant_columns(x)
         # Prediction and calculated probability of each of the labels.
         y_proba = classifier.predict_proba(x)
         y_pred = classifier.predict(x)
@@ -337,7 +350,9 @@ class Classifier(Estimator):
                          trained_model_dir=False):
         """Evaluate the model using the provided dataset"""
 
-        [self.X, self.y] = self.get_labelled_samples(filepath)
+        X, self.y = self.get_labelled_samples(filepath)
+        self.find_invariant_columns(X)
+        self.X = self.remove_invariant_columns(X)
 
         # Classes balance check.
         y_array = np.array(self.y.T[0])
@@ -624,10 +639,9 @@ class Classifier(Estimator):
 
     def classifier_exists(self):
         """Checks if there is a previously stored classifier"""
-
-        classifier_dir = os.path.join(self.persistencedir,
-                                      PERSIST_FILENAME)
-        return os.path.isfile(classifier_dir)
+        classifier_file = os.path.join(self.persistencedir,
+                                       PERSIST_FILENAME)
+        return os.path.isfile(classifier_file)
 
     def get_tensor_logdir(self):
         """Returns the directory to store tensorflow framework logs"""
