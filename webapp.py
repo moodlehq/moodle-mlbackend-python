@@ -6,20 +6,25 @@ import zipfile
 from flask import Flask, send_file, Response
 
 from moodlemlbackend.processor import estimator
-
-from moodlemlbackend.webapp.localfs import LocalFS, LocalFS_setup_base_dir
-from moodlemlbackend.webapp.s3 import S3, S3_setup_base_dir
 from moodlemlbackend.webapp.access import check_access
 from moodlemlbackend.webapp.util import get_request_value, get_file_path
 from moodlemlbackend.webapp.util import zipdir
 
 app = Flask(__name__)
 
-# S3 or the local file system depending on the presence of this ENV var.
+# If the MOODLE_MLBACKEND_PYTHON_S3_BUCKET_NAME environment variable is set, we
+# use the S3 backend, otherwise the local file system.
+#
+# Note that there are conditional imports here, and linters might
+# complain that they are not right at the top. Those linters should
+# relax. What we are doing here is completely fine.
+
 if "MOODLE_MLBACKEND_PYTHON_S3_BUCKET_NAME" in os.environ:
+    from moodlemlbackend.webapp.s3 import S3, S3_setup_base_dir
     storage = S3()
     setup_base_dir = S3_setup_base_dir
 else:
+    from moodlemlbackend.webapp.localfs import LocalFS, LocalFS_setup_base_dir
     storage = LocalFS()
     setup_base_dir = LocalFS_setup_base_dir
 

@@ -1,0 +1,98 @@
+#!/usr/bin/python3
+from subprocess import run
+import re
+import sys
+import os
+
+# This environment variable tells test_webapp to allow the slow tests,
+# which is what we want for timing purposes.
+os.environ["MOODLE_MLBACKEND_RUN_SLOW_TESTS"] = '1'
+
+# This one makes the tests use the old style plaintext password string,
+# which not all commits might have.
+os.environ["MOODLE_MLBACKEND_TEST_OLD_PASSWORDS"] = '1'
+
+
+TEST_WEBAPP_COMMIT = 'stashed-eval'
+TEST = 'stashed_evaluation_long'
+#TEST = 'stashed_evaluation_short'
+
+PYTEST = ['python3',
+          '-mpytest',
+          '-Wignore::DeprecationWarning',
+          '-Wignore::FutureWarning',
+          '-s',
+          '--durations=0']
+
+
+def checkout_branch(b):
+    run(['git',
+         'checkout',
+         b], check=True)
+
+
+def checkout_test(b=TEST_WEBAPP_COMMIT):
+    # Ensure the test is exactly the same in every test run.
+    run(['git',
+         'checkout',
+         b,
+         '--',
+         'test/test_webapp.py'], check=True)
+
+
+def run_test():
+    p = run(PYTEST + ['-k', TEST],
+            capture_output=True,
+            check=True)
+
+    out = p.stdout.decode('utf8')
+    print(p.stderr)
+    for metric in ['score', 'precision', 'recall', 'score_deviation', 'accuracy']:
+        m = re.search(r"'%s': (\d+\.?\d+)" % (metric,), out)
+        if m is None:
+            print(f"{metric} is missing")
+        else:
+            name = f"{metric}:"
+            val = float(m.group(1))
+            print(f"{metric:<20} {val:.3}")
+
+    m = re.search(r"(\d+\.?\d+)s call.+%s" % (TEST,), out)
+    if m is None:
+        print(f"duration is missing")
+    else:
+        print(f"duration:           {m.group(1)}")
+
+
+def current_ref():
+    """Get the branch or tag if we are on one, otherwise the commit hash"""
+    try:
+        p = run(['git',
+                 'symbolic-ref',
+                 'HEAD',
+                 '--short'],
+                capture_output=True,
+                check=True)
+    except CalledProcessError as e:
+        print(e)
+        p = run(['git',
+                 'rev-parse',
+                 'HEAD'])
+
+    return p.stdout.decode('utf-8').strip()
+
+
+def main():
+    original_ref = current_ref()
+    try:
+        for commit in sys.argv[1:]:
+            print()
+            print(commit)
+            checkout_branch(commit)
+            checkout_test(original_ref)
+            run_test()
+            checkout_test(commit)
+    finally:
+        checkout_branch(original_ref)
+
+
+main()
