@@ -1,4 +1,4 @@
-tensorflow>=1.14.0,<1.15
+tensorflow>=2.4.2,<2.5
 sklearn
 numpy
 matplotlib
