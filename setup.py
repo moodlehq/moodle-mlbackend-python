@@ -51,7 +51,7 @@ setup(
     },
     install_requires=[
         'matplotlib>=3.0,<3.1',
-        'numpy>=1.16.0,<1.17',
+        'numpy>=1.19.2,<1.20',
         'scikit-learn>=0.21,<0.22',
         'joblib>=0.13.0,<0.14',
         'tensorflow>=2.4.2,<2.5',

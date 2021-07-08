@@ -12,17 +12,25 @@ After applying your changes and committing them you need to go through the follo
 
 ## Release process
 
-* Ensure that the VERSION git tag has been created.
-* Verify that ```moodlemlbackend/VERSION``` version matches the new version.
-* Build the wheel (it generates the dist files)
+* Make your changes and build the wheel (it generates the dist files)
 
         python setup.py bdist_wheel --universal
 
-* Upload the generated dist file (credentials required)
+* Install your new wheel locally (need to have moodlemlbackend>=2.6.1,<2.7 in /tmp/requirements.txt)
+
+        pip install -r /tmp/requirements.txt --no-index --find-links dist/moodlemlbackend-2.6.1-py2.py3-none-any.whl
+
+* Run tests if any and make sure all passing
+
+        python3 -mpytest
+
+* Add all new dist files, commit changes and push them upstream (create merge request).
+* Once approved upload the generated dist file (credentials required)
 
         twine upload dist/*
 
-* Add all new dist files, commit changes and push them upstream.
+* Ensure that the VERSION git tag has been created.
+* Verify that ```moodlemlbackend/VERSION``` version matches the new version and push tags
 * Update the required moodle-mlbackend package version in Moodle core (```REQUIRED_PIP_PACKAGE_VERSION``` constant version in \mlbackend_python\processor class)
 
 
