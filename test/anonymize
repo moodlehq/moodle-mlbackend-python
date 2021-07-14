@@ -1,0 +1,15 @@
+#!/usr/bin/python3
+
+import sys
+import stash
+import argparse
+
+parser = argparse.ArgumentParser(description='Anonymise a stashed request')
+parser.add_argument('-s', '--seed', type=lambda x: x.encode('utf-8'),
+                    help='random seed to shuffle data (default: the uniqueid)')
+parser.add_argument('file',
+                    help='file to anonymize')
+args = parser.parse_args()
+
+anon = stash.anonymize(args.file, seed=args.seed)
+sys.stdout.buffer.write(anon)

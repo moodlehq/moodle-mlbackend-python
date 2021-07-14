@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+
+import argparse
+import hashlib
+import secrets
+from getpass import getpass
+
+
+def salt():
+    return secrets.token_hex(16)
+
+
+def new_password():
+    return secrets.token_urlsafe(16)
+
+
+def hash_one(password):
+    name = 'sha256'
+    h = hashlib.new(name)
+    s = salt()
+    h.update(s.encode('utf8'))
+    h.update(password.encode('utf8'))
+    d = h.hexdigest()
+    return (name, s, d)
+
+
+def entry(user, password):
+    if set(',:\n') & set(user):
+        raise ValueError("username can't contain colons, commas, or new lines")
+
+    hash_name, s, digest = hash_one(password)
+    return f"{user}:{hash_name}:{s}:{digest}"
+
+
+def main():
+    desc = 'Generate environment vars for moodle_mlbackend web auth'
+    parser = argparse.ArgumentParser(description=desc)
+    parser.add_argument('-g', '--generate-password', action='store_true',
+                        help=('choose and print random passwords '
+                              '(rather than prompt)'))
+    parser.add_argument('-P', '--passwords',
+                        help=('comma separated passwords '
+                              '(rather than prompt)'))
+    parser.add_argument('user', nargs='+',
+                        help='users for which to make the password string')
+    args = parser.parse_args()
+
+    if len(set(args.user)) != len(args.user):
+        parser.print_usage()
+        sys.exit(1)
+
+    if args.passwords is not None:
+        passwords = args.passwords.split(',')
+        if len(passwords) != len(args.user):
+            print("--passwords argument should have one password per user,"
+                  "separated by commas.")
+            parser.print_usage()
+            sys.exit(1)
+
+    entries = []
+    for user in args.user:
+        if args.generate_password:
+            password = new_password()
+            print(f"password for {user}: {password}")
+        elif args.passwords is not None:
+            password = passwords.pop(0)
+        else:
+            password = getpass(f"password for {user}: ")
+
+        entries.append(entry(user, password))
+
+    print(','.join(entries))
+
+
+main()

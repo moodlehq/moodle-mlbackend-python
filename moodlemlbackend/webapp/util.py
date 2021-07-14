@@ -11,7 +11,7 @@ from flask import request
 def get_request_value(key, pattern=False, exception=True):
 
     if pattern is False:
-        pattern = '[^A-Za-z0-9_\-$]'
+        pattern = r'[^A-Za-z0-9_\-$]'
 
     value = request.values.get(key)
     if value is None:
