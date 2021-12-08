@@ -1,8 +1,7 @@
 #!/usr/bin/python3
-import pickle, sys
+import sys
 from pprint import pprint
 from collections import Counter
-from io import BytesIO
 import argparse
 import json
 
@@ -113,8 +112,6 @@ for k, v in parts.items():
             print()
             print('index of columns with no-zero variance')
             print(variable_samples)
-
-
 
     else:
         print(body)
