@@ -583,22 +583,12 @@ class Classifier(Estimator):
         return exportdir
 
     def import_classifier(self, importdir):
+        """Load a previously exported classifier, storing it as this model id.
 
-        model_vars_filepath = os.path.join(importdir,
-                                           EXPORT_MODEL_FILENAME)
-
-        with open(model_vars_filepath) as vars_file:
-            import_vars = json.load(vars_file)
-
-        self.n_features = import_vars['n_features']
-        if "n_classes" in import_vars:
-            self.n_classes = import_vars['n_classes']
-        else:
-            self.n_classes = 2
-
-        classifier = self.get_classifier(False, False,
-                                         initial_weights=import_vars)
-
+        Note: this overwrites any classifier that already exists with
+        the same model id.
+        """
+        classifier = self.load_classifier(importdir)
         self.store_classifier(classifier)
 
     def classifier_exists(self):
