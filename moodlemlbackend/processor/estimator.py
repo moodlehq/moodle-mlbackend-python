@@ -576,30 +576,11 @@ class Classifier(Estimator):
 
         return classifier
 
-    def export_classifier(self, exporttmpdir):
-        if self.classifier_exists():
-            classifier = self.load_classifier()
-        else:
-            return False
-
-        export_vars = {}
-
-        # Get all the variables in in initialise-vars scope.
-        sess = classifier.get_session()
-        for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                     scope='initialise-vars'):
-            # Converting to list as numpy arrays can't be serialised.
-            export_vars[var.op.name] = var.eval(sess).tolist()
-
-        # Append the number of features.
-        export_vars['n_features'] = classifier.n_features
-        export_vars['n_classes'] = classifier.n_classes
-
-        vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
-        with open(vars_file_path, 'w') as vars_file:
-            json.dump(export_vars, vars_file)
-
-        return exporttmpdir
+    def export_classifier(self, exportdir):
+        """Save the classifier to an external path"""
+        classifier = self.load_classifier()
+        classifier.save(exportdir)
+        return exportdir
 
     def import_classifier(self, importdir):
 
