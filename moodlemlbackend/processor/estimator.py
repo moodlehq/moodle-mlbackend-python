@@ -593,7 +593,12 @@ class Classifier(Estimator):
 
     def export_classifier(self, exportdir):
         """Save the classifier to an external path"""
-        classifier = self.load_classifier()
+        try:
+            classifier = self.load_classifier()
+        except FileNotFoundError as e:
+            logging.warning(f"could not export: {e}")
+            return False
+
         classifier.save(exportdir)
         return exportdir
 
