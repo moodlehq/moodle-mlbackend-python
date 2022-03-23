@@ -100,7 +100,22 @@ class Estimator(object):
             model_dir, PERSIST_FILENAME)
 
         classifier = joblib.load(classifier_filepath)
-        self.variable_columns = getattr(classifier, 'variable_columns', None)
+        for attr in ('variable_columns',
+                     'n_classes',
+                     'n_features'):
+            val = getattr(classifier, attr, None)
+            old = getattr(self, attr, None)
+            if old is not None:
+                _val = val
+                # we need to do a dance to compare numpy arrays
+                if isinstance(val, np.ndarray):
+                    _val = list(val)
+                    old = list(old)
+                if _val != old:
+                    logging.warning(f"loaded classifier has {attr} {_val}, "
+                                    f"existing value is {old}. This is bad.")
+            setattr(self, attr, val)
+
         path = os.path.join(model_dir, 'model.ckpt')
         classifier.load(path)
 
