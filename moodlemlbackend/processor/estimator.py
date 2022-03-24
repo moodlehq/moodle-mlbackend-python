@@ -414,8 +414,6 @@ class Classifier(Estimator):
         # Return results.
         result = self.get_evaluation_results(min_score, accepted_deviation)
 
-        print("score: " + str(result['score']))
-
         # Add the run id to identify it in the caller.
         result['runid'] = int(self.get_runid())
 
