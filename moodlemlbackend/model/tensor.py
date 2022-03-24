@@ -104,8 +104,9 @@ class TF(object):
         history = self.model.fit(X, y,
                                  self.batch_size,
                                  self.n_epoch,
-                                 verbose=2,
-                                 validation_split=0.1,  # XXX
+                                 verbose=0,
+                                 #verbose=2,             # uncomment these
+                                 #validation_split=0.1,  # for debug!
                                  **kwargs
         )
 
