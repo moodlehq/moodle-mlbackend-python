@@ -148,7 +148,8 @@ def test_import_export():
         assert result == 'Ok\nOk\n'
 
         assert os.path.isdir(import_dir)
-        assert os.listdir(import_dir)  # it shouldn't be empty
+        contents = os.listdir(import_dir)
+        assert contents  # it shouldn't be empty
 
         with temp_id_and_dir() as (export_id, export_dir):
             p = run('export', import_id, import_dir, export_dir)
@@ -158,6 +159,17 @@ def test_import_export():
             assert os.path.isdir(result)
             assert os.listdir(result)  # it shouldn't be empty
             assert result == export_dir
+
+            # re-import the exported one
+            with temp_id_and_dir() as (import_id2, import_dir2):
+                p = run('import', import_id2, import_dir2, export_dir)
+                assert p.returncode == 0
+                result = p.stdout.decode()
+                assert result == 'Ok\nOk\n'
+
+                # should contain the same files as the original import.
+                new_contents = os.listdir(import_dir2)
+                assert set(new_contents) == set(contents)
 
 
 def _test_insuffient_args(module, n):
