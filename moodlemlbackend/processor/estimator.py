@@ -597,7 +597,10 @@ class Classifier(Estimator):
             logging.warning(f"could not export: {e}")
             return False
 
-        classifier.save(exportdir)
+        path = os.path.join(exportdir, 'model.ckpt')
+        classifier.save(path)
+        pickle_name = os.path.join(exportdir, PERSIST_FILENAME)
+        joblib.dump(classifier, pickle_name)
         return exportdir
 
     def import_classifier(self, importdir):
