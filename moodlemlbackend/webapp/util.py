@@ -43,6 +43,6 @@ def zipdir(dirpath, zipf):
     for root, dirs, files in os.walk(dirpath):
         for file in files:
             abspath = os.path.join(root, file)
-            ziph.write(abspath, os.path.relpath(abspath, root))
+            ziph.write(abspath, os.path.relpath(abspath, dirpath))
     ziph.close()
     return ziph
