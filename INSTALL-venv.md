@@ -81,7 +81,7 @@ Additionally, if you try running the webserver, you should get an
 error complaining about a missing environment variable:
 
 ```
-$ python3 webserver.py
+$ python3 webapp.py
 [... many many numpy deprecation warnings ...]
 Traceback (most recent call last):
   File "webapp.py", line 36, in <module>
@@ -117,6 +117,13 @@ sensible little version string, like `2.3.0` (and nothing else).
 
 If you try `http://127.0.0.1:5000/evaluationlog`, you get the message
 `MOODLE_MLBACKEND_PYTHON_USERS environment var is not set in the server`.
+
+## Debugging - save payloads
+If you are debugging it is sometimes helpful to retain a copy of the training/prediction data sent to Tensorflow so that you can replay it directly.
+If you make the following call before calling web.py it will store these within the directory in the path.
+```
+export MOODLE_ML_STASH_DIR=/tmp/mlbackend
+```
 
 ## set up users
 
