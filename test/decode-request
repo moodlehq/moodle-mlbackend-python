@@ -9,7 +9,7 @@ import numpy as np
 
 from stash import read_pickle, get_boundary, split_body
 
-parser = argparse.ArgumentParser(description='Anonymise a stashed request')
+parser = argparse.ArgumentParser(description='Examine a stashed request')
 parser.add_argument('-C', '--column-names', action='store_true',
                     help='show column names')
 parser.add_argument('-H', '--http-headers', action='store_true',
@@ -21,7 +21,7 @@ parser.add_argument('-V', '--column-variance', action='store_true',
 parser.add_argument('-J', '--to-json', action='store_true',
                     help='output the pickle as json and exit')
 parser.add_argument('file',
-                    help='file to anonymize')
+                    help='file to decode')
 args = parser.parse_args()
 
 a = read_pickle(args.file)
