@@ -191,6 +191,9 @@ def main():
                         help='enable debug features (unsafe in production)')
     args = parser.parse_args()
 
+    # --debug-mode shows validation progress in logs
+    estimator.DEBUG_MODE = args.debug_mode
+
     if not args.world_visible:
         app.run(debug=args.debug_mode, port=args.port)
     else:

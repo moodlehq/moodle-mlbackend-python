@@ -41,6 +41,7 @@ PERSIST_FILENAME = 'classifier.pkl'
 EXPORT_MODEL_FILENAME = 'model.json'
 
 TARGET_BATCH_SIZE = 1000
+DEBUG_MODE = False
 
 
 class Estimator(object):
@@ -263,13 +264,14 @@ class Classifier(Estimator):
 
     def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
-
         if classifier is False:
             # Init the classifier.
             classifier = self.get_classifier(X_train, y_train)
 
         # Fit the training set. y should be an array-like.
-        classifier.fit(X_train, y_train[:, 0], log_run=log_run)
+        classifier.fit(X_train, y_train[:, 0],
+                       log_run=log_run,
+                       debug=DEBUG_MODE)
         self.store_classifier(classifier)
         # Returns the trained classifier.
         return classifier

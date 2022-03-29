@@ -84,7 +84,7 @@ class TF(object):
         self.model = tf.keras.models.load_model(path)
         self.compile()
 
-    def fit(self, X, y, log_run=True):
+    def fit(self, X, y, log_run=True, debug=False):
         """Fit the model to the provided data"""
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
@@ -101,12 +101,15 @@ class TF(object):
             )
             kwargs['callbacks'] = [cb]
 
+        if debug:
+            kwargs['verbose'] = 2
+            kwargs['validation_split'] = 0.05
+        else:
+            kwargs['verbose'] = 0
+
         history = self.model.fit(X, y,
                                  self.batch_size,
                                  self.n_epoch,
-                                 verbose=0,
-                                 #verbose=2,             # uncomment these
-                                 #validation_split=0.1,  # for debug!
                                  **kwargs
         )
 
