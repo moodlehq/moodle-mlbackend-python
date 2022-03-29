@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import sys
 from pprint import pprint
-from collections import Counter
+from collections import Counter, defaultdict
 import argparse
 import json
 
@@ -123,6 +123,20 @@ for k, v in parts.items():
             print("most common rows")
             for k, v in rc.most_common(10):
                 print(f'{v:4} {k[:80]}')
+
+            answers = defaultdict(list)
+            for x in samples:
+                answers[str(x[:-1])].append(x[-1])
+            contradictions = {}
+            for k, v in answers.items():
+                if len(set(v)) != 1:
+                    contradictions[k] = Counter(v)
+            if contradictions:
+                print("contradictory answers:")
+                for k, v in contradictions.items():
+                    print(f"{k[:100]}:")
+                    for kk, vv in v.most_common():
+                        print(f'  {kk} × {vv}')
 
     else:
         print(body)
