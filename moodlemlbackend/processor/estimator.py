@@ -248,8 +248,10 @@ class Classifier(Estimator):
         # We also mix in the number of features: more features
         # probably wants a bigger network, but if we don't have the
         # examples we can't justify it.
-
-        size_hint = len(np.unique(X, axis=0)) * (1 + math.log(n_features))
+        if n_features < 1:
+            size_hint = 0
+        else:
+            size_hint = len(np.unique(X, axis=0)) * (1 + math.log(n_features))
 
         n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
         n_batches = min(n_batches, 10)
