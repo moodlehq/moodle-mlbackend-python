@@ -15,16 +15,19 @@ class TF(object):
     """Tensorflow classifier"""
 
     def __init__(self, n_features, n_classes, n_epoch, batch_size,
-                 tensor_logdir):
+                 tensor_logdir, size_hint):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
         self.n_features = n_features
 
-        # Based on the number of features although we need a reasonable
-        # minimum.
-        self.n_hidden = max(4, int(n_features / 3))
-        self.n_hidden_layers = 2
+        if size_hint > 10:
+            self.n_hidden = max(8, int(n_features / 3))
+            self.n_hidden_layers = 2
+        else:
+            self.n_hidden = 10
+            self.n_hidden_layers = 1
+
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 

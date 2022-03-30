@@ -240,6 +240,17 @@ class Classifier(Estimator):
 
         n_rows, n_features = X.shape
 
+        # size_hint helps decide how many hidden nodes the network
+        # should have. Currently it is mostly based on the number of
+        # unique examples: the more you have, the larger the network
+        # *can* be.
+        #
+        # We also mix in the number of features: more features
+        # probably wants a bigger network, but if we don't have the
+        # examples we can't justify it.
+
+        size_hint = len(np.unique(X, axis=0)) * (1 + math.log(n_features))
+
         n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
         n_batches = min(n_batches, 10)
         batch_size = (n_rows + n_batches - 1) // n_batches
@@ -255,7 +266,7 @@ class Classifier(Estimator):
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          self.get_tensor_logdir(),
-                         )
+                         size_hint=size_hint)
 
     def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
