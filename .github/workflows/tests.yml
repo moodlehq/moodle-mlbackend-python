@@ -27,4 +27,4 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        PYTHONPATH=. pytest
+        PYTHONPATH=. MOODLE_MLBACKEND_RUN_SLOW_TESTS=1 pytest
