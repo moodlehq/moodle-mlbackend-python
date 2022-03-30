@@ -425,6 +425,27 @@ def test_stashed_evaluation_short(client):
                         niterations=1)
 
 
+def test_stashed_evaluation_degenerate_multiclass(client):
+    """This is a test borrowed from Moodle PHP tests.
+
+    We have 3 training examples repeated 50 times each. There are 2
+    inputs and 3 output classes.
+    """
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'degenerate-multiclass-test.bz2'
+    )
+    expected_ranges = {
+        'accuracy': [1.0, 1.0],
+        'f1_score': [1.0, 1.0],
+    }
+
+    _stashed_evaluation(client,
+                        filename,
+                        expected_ranges,
+                        niterations=10)
+
+
 @pytest.mark.skipif(not RUN_SLOW_TESTS, reason="slow")
 def test_stashed_evaluation_long(client):
     filename = os.path.join(HERE,
