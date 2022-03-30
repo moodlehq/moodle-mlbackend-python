@@ -425,6 +425,7 @@ def test_stashed_evaluation_short(client):
                         niterations=1)
 
 
+@pytest.mark.skipif(not RUN_SLOW_TESTS, reason="long, non-essential")
 def test_stashed_evaluation_degenerate_multiclass(client):
     """This is a test borrowed from Moodle PHP tests.
 
