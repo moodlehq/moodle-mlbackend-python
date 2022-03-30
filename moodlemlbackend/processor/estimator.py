@@ -235,7 +235,7 @@ class Classifier(Estimator):
         self.tensor_logdir = self.get_tensor_logdir()
         os.makedirs(self.tensor_logdir, exist_ok=True)
 
-    def get_classifier(self, X, y, initial_weights=False):
+    def get_classifier(self, X, y):
         """Gets the classifier"""
 
         n_rows, n_features = X.shape
@@ -255,7 +255,7 @@ class Classifier(Estimator):
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          self.get_tensor_logdir(),
-                         initial_weights=initial_weights)
+                         )
 
     def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
