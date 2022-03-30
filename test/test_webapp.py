@@ -447,6 +447,24 @@ def test_stashed_evaluation_degenerate_multiclass(client):
                         niterations=10)
 
 
+def test_stashed_training_degenerate_tiny_dataset(client):
+    """This is a test borrowed from Moodle PHP tests.
+
+    We have 3 training examples repeated 50 times each. There are 2
+    inputs and 3 output classes.
+    """
+    for fn in ('tiny-data-set.bz2', 'tiny-data-set-2.bz2'):
+
+        filename = os.path.join(HERE,
+                                'test-requests',
+                                fn
+                                )
+        with post_real_data(client.post, filename) as resp:
+            assert resp.status_code == 200
+            results = json.loads(resp.data)
+            pprint(results)
+
+
 @pytest.mark.skipif(not RUN_SLOW_TESTS, reason="slow")
 def test_stashed_evaluation_long(client):
     filename = os.path.join(HERE,
