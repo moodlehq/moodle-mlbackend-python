@@ -238,12 +238,7 @@ class Classifier(Estimator):
     def get_classifier(self, X, y, initial_weights=False):
         """Gets the classifier"""
 
-        try:
-            n_rows = X.shape[0]
-        except AttributeError:
-            # No X during model import.
-            # n_rows value does not really matter during import.
-            n_rows = 1
+        n_rows, n_features = X.shape
 
         n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
         n_batches = min(n_batches, 10)
@@ -257,7 +252,6 @@ class Classifier(Estimator):
         n_epoch = 80 + (1000000 // (n_rows + 1000))
 
         n_classes = self.n_classes
-        n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          self.get_tensor_logdir(),
