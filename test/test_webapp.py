@@ -614,6 +614,49 @@ def test_training_prediction_evaluation(client):
         assert data['f1_score'] > 0.8
 
 
+def test_training_prediction_degenerate_data(client):
+    """Test with an unrealistically small dataset"""
+
+    dataset = get_dataset(n=10)
+
+    with temporary_model(client) as (uid, auth):
+        resp = _training_post(client.post,
+                              uniqueid=uid,
+                              dataset=dataset,
+                              headers=auth)
+
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+
+        resp, expected = _prediction_post(client,
+                                          uniqueid=uid,
+                                          n=200,
+                                          headers=auth)
+        data = json.loads(resp.data)
+        results = [float(x[1]) for x in data['predictions']]
+
+        assert len(results) == len(expected)
+        correct = [a == b for a, b in zip(results, expected)]
+        accuracy = sum(correct) / len(correct)
+        assert accuracy > 0.6
+
+        eval_data = get_dataset(n=50)
+
+        resp = _evaluation_post(client,
+                                uid,
+                                dataset=eval_data,
+                                headers=auth)
+
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        # We expect lower accuracy with this tiny dataset
+        assert data['accuracy'] > 0.6
+        assert data['recall'] > 0.6
+        assert data['precision'] > 0.6
+        assert data['score'] > 0.6
+        assert data['f1_score'] > 0.6
+
+
 def test_prediction_bad_auth(client):
     bad_auth = _auth('x', 'y')
     resp, y = _prediction_post(client, headers=bad_auth)
