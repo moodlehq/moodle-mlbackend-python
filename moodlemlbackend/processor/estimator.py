@@ -250,10 +250,11 @@ class Classifier(Estimator):
         batch_size = (n_rows + n_batches - 1) // n_batches
 
         # the number of epochs can be smaller if we have a large
-        # number of samples. On the other hand it must also be small
-        # if we have very few samples, or the model will overfit. What
-        # we can say is that with larger batches we need more epochs.
-        n_epoch = 40 + batch_size // 20
+        # number of samples. On the other hand it *should* also be
+        # small if we have *very* few samples, or the model will
+        # overfit. Unfortunately, we would rather overfit than give
+        # vague answers.
+        n_epoch = 80 + (1000000 // (n_rows + 1000))
 
         n_classes = self.n_classes
         n_features = X.shape[1]
