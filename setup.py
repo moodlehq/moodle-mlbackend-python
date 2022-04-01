@@ -55,6 +55,8 @@ setup(
         'scikit-learn>=0.21,<0.22',
         'joblib>=0.13.0,<0.14',
         'tensorflow>=2.4.2,<2.5',
+        'itsdangerous==2.0.1',
+        'Jinja2>=3.0.1,<3.1',
         'flask>=1.0.2,<1.1',
         'boto3>=1.9.0,<1.10',
     ],
