@@ -41,6 +41,7 @@ PERSIST_FILENAME = 'classifier.pkl'
 EXPORT_MODEL_FILENAME = 'model.json'
 
 TARGET_BATCH_SIZE = 1000
+DEBUG_MODE = False
 
 
 class Estimator(object):
@@ -100,7 +101,22 @@ class Estimator(object):
             model_dir, PERSIST_FILENAME)
 
         classifier = joblib.load(classifier_filepath)
-        self.variable_columns = getattr(classifier, 'variable_columns', None)
+        for attr in ('variable_columns',
+                     'n_classes',
+                     'n_features'):
+            val = getattr(classifier, attr, None)
+            old = getattr(self, attr, None)
+            if old is not None:
+                _val = val
+                # we need to do a dance to compare numpy arrays
+                if isinstance(val, np.ndarray):
+                    _val = list(val)
+                    old = list(old)
+                if _val != old:
+                    logging.warning(f"loaded classifier has {attr} {_val}, "
+                                    f"existing value is {old}. This is bad.")
+            setattr(self, attr, val)
+
         path = os.path.join(model_dir, 'model.ckpt')
         classifier.load(path)
 
@@ -219,42 +235,51 @@ class Classifier(Estimator):
         self.tensor_logdir = self.get_tensor_logdir()
         os.makedirs(self.tensor_logdir, exist_ok=True)
 
-    def get_classifier(self, X, y, initial_weights=False):
+    def get_classifier(self, X, y):
         """Gets the classifier"""
 
-        try:
-            n_rows = X.shape[0]
-        except AttributeError:
-            # No X during model import.
-            # n_rows value does not really matter during import.
-            n_rows = 1
+        n_rows, n_features = X.shape
+
+        # size_hint helps decide how many hidden nodes the network
+        # should have. Currently it is mostly based on the number of
+        # unique examples: the more you have, the larger the network
+        # *can* be.
+        #
+        # We also mix in the number of features: more features
+        # probably wants a bigger network, but if we don't have the
+        # examples we can't justify it.
+        if n_features < 1:
+            size_hint = 0
+        else:
+            size_hint = len(np.unique(X, axis=0)) * (1 + math.log(n_features))
 
         n_batches = (n_rows + TARGET_BATCH_SIZE - 1) // TARGET_BATCH_SIZE
         n_batches = min(n_batches, 10)
         batch_size = (n_rows + n_batches - 1) // n_batches
 
         # the number of epochs can be smaller if we have a large
-        # number of samples. On the other hand it must also be small
-        # if we have very few samples, or the model will overfit. What
-        # we can say is that with larger batches we need more epochs.
-        n_epoch = 40 + batch_size // 20
+        # number of samples. On the other hand it *should* also be
+        # small if we have *very* few samples, or the model will
+        # overfit. Unfortunately, we would rather overfit than give
+        # vague answers.
+        n_epoch = 80 + (1000000 // (n_rows + 1000))
 
         n_classes = self.n_classes
-        n_features = X.shape[1]
 
         return tensor.TF(n_features, n_classes, n_epoch, batch_size,
                          self.get_tensor_logdir(),
-                         initial_weights=initial_weights)
+                         size_hint=size_hint)
 
     def train(self, X_train, y_train, classifier=False, log_run=True):
         """Train the classifier with the provided training data"""
-
         if classifier is False:
             # Init the classifier.
             classifier = self.get_classifier(X_train, y_train)
 
         # Fit the training set. y should be an array-like.
-        classifier.fit(X_train, y_train[:, 0], log_run=log_run)
+        classifier.fit(X_train, y_train[:, 0],
+                       log_run=log_run,
+                       debug=DEBUG_MODE)
         self.store_classifier(classifier)
         # Returns the trained classifier.
         return classifier
@@ -398,8 +423,6 @@ class Classifier(Estimator):
 
         # Return results.
         result = self.get_evaluation_results(min_score, accepted_deviation)
-
-        print("score: " + str(result['score']))
 
         # Add the run id to identify it in the caller.
         result['runid'] = int(self.get_runid())
@@ -576,48 +599,27 @@ class Classifier(Estimator):
 
         return classifier
 
-    def export_classifier(self, exporttmpdir):
-        if self.classifier_exists():
+    def export_classifier(self, exportdir):
+        """Save the classifier to an external path"""
+        try:
             classifier = self.load_classifier()
-        else:
+        except FileNotFoundError as e:
+            logging.warning(f"could not export: {e}")
             return False
 
-        export_vars = {}
-
-        # Get all the variables in in initialise-vars scope.
-        sess = classifier.get_session()
-        for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
-                                     scope='initialise-vars'):
-            # Converting to list as numpy arrays can't be serialised.
-            export_vars[var.op.name] = var.eval(sess).tolist()
-
-        # Append the number of features.
-        export_vars['n_features'] = classifier.n_features
-        export_vars['n_classes'] = classifier.n_classes
-
-        vars_file_path = os.path.join(exporttmpdir, EXPORT_MODEL_FILENAME)
-        with open(vars_file_path, 'w') as vars_file:
-            json.dump(export_vars, vars_file)
-
-        return exporttmpdir
+        path = os.path.join(exportdir, 'model.ckpt')
+        classifier.save(path)
+        pickle_name = os.path.join(exportdir, PERSIST_FILENAME)
+        joblib.dump(classifier, pickle_name)
+        return exportdir
 
     def import_classifier(self, importdir):
+        """Load a previously exported classifier, storing it as this model id.
 
-        model_vars_filepath = os.path.join(importdir,
-                                           EXPORT_MODEL_FILENAME)
-
-        with open(model_vars_filepath) as vars_file:
-            import_vars = json.load(vars_file)
-
-        self.n_features = import_vars['n_features']
-        if "n_classes" in import_vars:
-            self.n_classes = import_vars['n_classes']
-        else:
-            self.n_classes = 2
-
-        classifier = self.get_classifier(False, False,
-                                         initial_weights=import_vars)
-
+        Note: this overwrites any classifier that already exists with
+        the same model id.
+        """
+        classifier = self.load_classifier(importdir)
         self.store_classifier(classifier)
 
     def classifier_exists(self):

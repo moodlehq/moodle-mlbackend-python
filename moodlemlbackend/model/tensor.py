@@ -15,20 +15,23 @@ class TF(object):
     """Tensorflow classifier"""
 
     def __init__(self, n_features, n_classes, n_epoch, batch_size,
-                 tensor_logdir, initial_weights=False):
+                 tensor_logdir, size_hint):
 
         self.n_epoch = n_epoch
         self.batch_size = batch_size
         self.n_features = n_features
 
-        # Based on the number of features although we need a reasonable
-        # minimum.
-        self.n_hidden = max(4, int(n_features / 3))
-        self.n_hidden_layers = 2
+        if size_hint > 10:
+            self.n_hidden = max(8, int(n_features / 3))
+            self.n_hidden_layers = 2
+        else:
+            self.n_hidden = 10
+            self.n_hidden_layers = 1
+
         self.n_classes = n_classes
         self.tensor_logdir = tensor_logdir
 
-        self.build_graph(initial_weights)
+        self.build_graph()
 
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -50,7 +53,7 @@ class TF(object):
 
         self.tensor_logdir = tensor_logdir
 
-    def build_graph(self, initial_weights=False):
+    def build_graph(self):
         """Builds the computational graph without feeding any data in"""
         tf.compat.v1.reset_default_graph()
         tf.keras.backend.clear_session()
@@ -84,7 +87,7 @@ class TF(object):
         self.model = tf.keras.models.load_model(path)
         self.compile()
 
-    def fit(self, X, y, log_run=True):
+    def fit(self, X, y, log_run=True, debug=False):
         """Fit the model to the provided data"""
         y = preprocessing.MultiLabelBinarizer().fit_transform(
             y.reshape(len(y), 1))
@@ -101,11 +104,15 @@ class TF(object):
             )
             kwargs['callbacks'] = [cb]
 
+        if debug:
+            kwargs['verbose'] = 2
+            kwargs['validation_split'] = 0.05
+        else:
+            kwargs['verbose'] = 0
+
         history = self.model.fit(X, y,
                                  self.batch_size,
                                  self.n_epoch,
-                                 verbose=2,
-                                 validation_split=0.1,  # XXX
                                  **kwargs
         )
 

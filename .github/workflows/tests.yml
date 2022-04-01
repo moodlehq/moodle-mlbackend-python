@@ -15,7 +15,7 @@ jobs:
         python-version: 3.7
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
+        python3 -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
@@ -27,4 +27,4 @@ jobs:
     - name: Test with pytest
       run: |
         pip install pytest
-        PYTHONPATH=. pytest
+        PYTHONPATH=. MOODLE_MLBACKEND_RUN_SLOW_TESTS=1 pytest
