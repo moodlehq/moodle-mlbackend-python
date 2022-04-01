@@ -1,8 +1,7 @@
 #!/usr/bin/python3
-import pickle, sys
+import sys
 from pprint import pprint
-from collections import Counter
-from io import BytesIO
+from collections import Counter, defaultdict
 import argparse
 import json
 
@@ -10,7 +9,7 @@ import numpy as np
 
 from stash import read_pickle, get_boundary, split_body
 
-parser = argparse.ArgumentParser(description='Anonymise a stashed request')
+parser = argparse.ArgumentParser(description='Examine a stashed request')
 parser.add_argument('-C', '--column-names', action='store_true',
                     help='show column names')
 parser.add_argument('-H', '--http-headers', action='store_true',
@@ -19,10 +18,12 @@ parser.add_argument('-R', '--data-rows', const=2, type=int, nargs='?',
                     help='show n rows of data')
 parser.add_argument('-V', '--column-variance', action='store_true',
                     help='show column variance')
+parser.add_argument('-S', '--row-statistics', action='store_true',
+                    help='count unique and contradictory rows')
 parser.add_argument('-J', '--to-json', action='store_true',
                     help='output the pickle as json and exit')
 parser.add_argument('file',
-                    help='file to anonymize')
+                    help='file to decode')
 args = parser.parse_args()
 
 a = read_pickle(args.file)
@@ -111,10 +112,31 @@ for k, v in parts.items():
             print()
             print(np.var(samples, 0))
             print()
-            print('index of columns with no-zero variance')
+            print('index of columns with non-zero variance')
             print(variable_samples)
 
+        if args.row_statistics:
+            print()
+            print(f'\033[01;33mrow statistics\033[00m')
+            print()
+            rc = Counter(str(x) for x in samples)
+            print("most common rows")
+            for k, v in rc.most_common(10):
+                print(f'{v:4} {k[:80]}')
 
+            answers = defaultdict(list)
+            for x in samples:
+                answers[str(x[:-1])].append(x[-1])
+            contradictions = {}
+            for k, v in answers.items():
+                if len(set(v)) != 1:
+                    contradictions[k] = Counter(v)
+            if contradictions:
+                print("contradictory answers:")
+                for k, v in contradictions.items():
+                    print(f"{k[:100]}:")
+                    for kk, vv in v.most_common():
+                        print(f'  {kk} × {vv}')
 
     else:
         print(body)

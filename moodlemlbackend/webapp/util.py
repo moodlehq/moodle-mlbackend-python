@@ -2,8 +2,7 @@ import re
 import os
 import zipfile
 import tempfile
-import shutil
-import atexit
+from contextlib import contextmanager
 
 from flask import request
 
@@ -23,17 +22,16 @@ def get_request_value(key, pattern=False, exception=True):
     return re.sub(pattern, '', value)
 
 
+@contextmanager
 def get_file_path(localbasedir, filekey):
-
     file = request.files[filekey]
-
-    tempdir = tempfile.mkdtemp()
-    tempfilepath = os.path.join(tempdir, filekey)
-
-    atexit.register(shutil.rmtree, tempdir)
+    tempdir = tempfile.TemporaryDirectory()
+    tempfilepath = os.path.join(tempdir.name, filekey)
     file.save(tempfilepath)
-
-    return tempfilepath
+    try:
+        yield tempfilepath
+    finally:
+        tempdir.cleanup()
 
 
 def zipdir(dirpath, zipf):
@@ -43,6 +41,6 @@ def zipdir(dirpath, zipf):
     for root, dirs, files in os.walk(dirpath):
         for file in files:
             abspath = os.path.join(root, file)
-            ziph.write(abspath, os.path.relpath(abspath, root))
+            ziph.write(abspath, os.path.relpath(abspath, dirpath))
     ziph.close()
     return ziph

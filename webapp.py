@@ -29,11 +29,26 @@ else:
     setup_base_dir = LocalFS_setup_base_dir
 
 
+# Set MOODLE_MLBACKEND_TEMPDIR to use something other than /tmp for
+# temporary storage.
+if "MOODLE_MLBACKEND_TEMPDIR" in os.environ:
+    tempfile.tempdir = os.environ['MOODLE_MLBACKEND_TEMPDIR']
+
+
 @app.route('/version', methods=['GET'])
 def version():
     here = os.path.abspath(os.path.dirname(__file__))
-    version_file = open(os.path.join(here, 'moodlemlbackend', 'VERSION'))
-    return version_file.read().strip()
+    # "./web-compat-version" is NOT in the git tree.
+    # If it exists, the version there is used; otherwise the true
+    # version is given. This allows versions with interchangeable APIs
+    # to be substituted for each other, allowing the ML-backend to be
+    # upgraded at a different cadence than Moodle itself.
+    # (Moodle makes a strict version check).
+    for fn in [os.path.join(here, 'web-compat-version'),
+               os.path.join(here, 'moodlemlbackend', 'VERSION')]:
+        if os.path.exists(fn):
+            with open(fn) as f:
+                return f.read().strip()
 
 
 @app.route('/training', methods=['POST'])
@@ -44,10 +59,9 @@ def training():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.train_dataset(datasetpath)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as dataset:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, dataset=dataset)
+        result = classifier.train_dataset(dataset)
 
     return json.dumps(result)
 
@@ -60,10 +74,9 @@ def prediction():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.predict_dataset(datasetpath)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as datasetpath:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
+        result = classifier.predict_dataset(datasetpath)
 
     return json.dumps(result)
 
@@ -80,8 +93,6 @@ def evaluation():
     maxdeviation = get_request_value('maxdeviation', pattern='[^0-9.$]')
     niterations = get_request_value('niterations', pattern='[^0-9$]')
 
-    datasetpath = get_file_path(storage.get_localbasedir(), 'dataset')
-
     trainedmodeldirhash = get_request_value(
         'trainedmodeldirhash', exception=False)
     if trainedmodeldirhash is not False:
@@ -93,12 +104,13 @@ def evaluation():
     else:
         trainedmodeldir = False
 
-    classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
-    result = classifier.evaluate_dataset(datasetpath,
-                                         float(minscore),
-                                         float(maxdeviation),
-                                         int(niterations),
-                                         trainedmodeldir)
+    with get_file_path(storage.get_localbasedir(), 'dataset') as datasetpath:
+        classifier = estimator.Classifier(uniquemodelid, modeldir, datasetpath)
+        result = classifier.evaluate_dataset(datasetpath,
+                                             float(minscore),
+                                             float(maxdeviation),
+                                             int(niterations),
+                                             trainedmodeldir)
 
     return json.dumps(result)
 
@@ -148,14 +160,13 @@ def import_model():
     uniquemodelid = get_request_value('uniqueid')
     modeldir = storage.get_model_dir('dirhash')
 
-    importzippath = get_file_path(storage.get_localbasedir(), 'importzip')
+    with get_file_path(storage.get_localbasedir(), 'importzip') as importzippath:
+        with zipfile.ZipFile(importzippath, 'r') as zipobject:
+            with tempfile.TemporaryDirectory() as importtempdir:
+                zipobject.extractall(importtempdir)
 
-    with zipfile.ZipFile(importzippath, 'r') as zipobject:
-        importtempdir = tempfile.TemporaryDirectory()
-        zipobject.extractall(importtempdir.name)
-
-        classifier = estimator.Classifier(uniquemodelid, modeldir)
-        classifier.import_classifier(importtempdir.name)
+                classifier = estimator.Classifier(uniquemodelid, modeldir)
+                classifier.import_classifier(importtempdir)
 
     return 'Ok', 200
 
@@ -180,10 +191,13 @@ def main():
                         help='enable debug features (unsafe in production)')
     args = parser.parse_args()
 
+    # --debug-mode shows validation progress in logs
+    estimator.DEBUG_MODE = args.debug_mode
+
     if not args.world_visible:
-        app.run(debug=True, port=args.port)
+        app.run(debug=args.debug_mode, port=args.port)
     else:
-        app.run(host='0.0.0.0', port=args.port)
+        app.run(debug=args.debug_mode, host='0.0.0.0', port=args.port)
 
 
 if __name__ == '__main__':

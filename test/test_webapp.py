@@ -52,8 +52,11 @@ def gen_password_string():
 # the environment before importing webapp.
 
 DATA_DIR = os.path.join(HERE, 'temp-data')
+TEMP_DIR = os.path.join(HERE, 'temp-data/tmp')
 os.makedirs(DATA_DIR, exist_ok=True)
+os.makedirs(TEMP_DIR, exist_ok=True)
 os.environ["MOODLE_MLBACKEND_PYTHON_DIR"] = DATA_DIR
+os.environ["MOODLE_MLBACKEND_TEMPDIR"] = TEMP_DIR
 
 os.environ["MOODLE_MLBACKEND_PYTHON_USERS"] = gen_password_string()
 
@@ -422,6 +425,46 @@ def test_stashed_evaluation_short(client):
                         niterations=1)
 
 
+@pytest.mark.skipif(not RUN_SLOW_TESTS, reason="long, non-essential")
+def test_stashed_evaluation_degenerate_multiclass(client):
+    """This is a test borrowed from Moodle PHP tests.
+
+    We have 3 training examples repeated 50 times each. There are 2
+    inputs and 3 output classes.
+    """
+    filename = os.path.join(HERE,
+                            'test-requests',
+                            'degenerate-multiclass-test.bz2'
+    )
+    expected_ranges = {
+        'accuracy': [1.0, 1.0],
+        'f1_score': [1.0, 1.0],
+    }
+
+    _stashed_evaluation(client,
+                        filename,
+                        expected_ranges,
+                        niterations=10)
+
+
+def test_stashed_training_degenerate_tiny_dataset(client):
+    """This is a test borrowed from Moodle PHP tests.
+
+    We have 3 training examples repeated 50 times each. There are 2
+    inputs and 3 output classes.
+    """
+    for fn in ('tiny-data-set.bz2', 'tiny-data-set-2.bz2'):
+
+        filename = os.path.join(HERE,
+                                'test-requests',
+                                fn
+                                )
+        with post_real_data(client.post, filename) as resp:
+            assert resp.status_code == 200
+            results = json.loads(resp.data)
+            pprint(results)
+
+
 @pytest.mark.skipif(not RUN_SLOW_TESTS, reason="slow")
 def test_stashed_evaluation_long(client):
     filename = os.path.join(HERE,
@@ -609,6 +652,49 @@ def test_training_prediction_evaluation(client):
         assert data['precision'] > 0.8
         assert data['score'] > 0.8
         assert data['f1_score'] > 0.8
+
+
+def test_training_prediction_degenerate_data(client):
+    """Test with an unrealistically small dataset"""
+
+    dataset = get_dataset(n=10)
+
+    with temporary_model(client) as (uid, auth):
+        resp = _training_post(client.post,
+                              uniqueid=uid,
+                              dataset=dataset,
+                              headers=auth)
+
+        assert resp.status_code == 200
+        results = json.loads(resp.data)
+
+        resp, expected = _prediction_post(client,
+                                          uniqueid=uid,
+                                          n=200,
+                                          headers=auth)
+        data = json.loads(resp.data)
+        results = [float(x[1]) for x in data['predictions']]
+
+        assert len(results) == len(expected)
+        correct = [a == b for a, b in zip(results, expected)]
+        accuracy = sum(correct) / len(correct)
+        assert accuracy > 0.6
+
+        eval_data = get_dataset(n=50)
+
+        resp = _evaluation_post(client,
+                                uid,
+                                dataset=eval_data,
+                                headers=auth)
+
+        assert resp.status_code == 200
+        data = json.loads(resp.data)
+        # We expect lower accuracy with this tiny dataset
+        assert data['accuracy'] > 0.6
+        assert data['recall'] > 0.6
+        assert data['precision'] > 0.6
+        assert data['score'] > 0.6
+        assert data['f1_score'] > 0.6
 
 
 def test_prediction_bad_auth(client):
