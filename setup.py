@@ -54,7 +54,7 @@ setup(
         'numpy>=1.19.2,<1.20',
         'scikit-learn>=0.21,<0.22',
         'joblib>=0.13.0,<0.14',
-        'tensorflow>=2.4.2,<2.5',
+        'tensorflow>=2.7.1,<2.8',
         'itsdangerous==2.0.1',
         'Jinja2>=3.0.1,<3.1',
         'flask>=1.0.2,<1.1',
